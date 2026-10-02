@@ -10,7 +10,8 @@ module Vanken
       def reset
         @document = @ui.document
         @generation = (@generation || 0) + 1
-        @rows, @pending = {}, {}
+        @rows, @pending, @requests = {}, {}, {}
+        @batch_scheduled = false
         @time_format = @ui.preferences.get("packet_list.time_format")
         @precision = {"milli" => 3, "micro" => 6, "nano" => 9}.fetch(@ui.preferences.get("packet_list.time_precision"))
         @limit = @ui.preferences.get("packet_list.row_cache_rows")
@@ -25,7 +26,8 @@ module Vanken
         @numbers = {}
         if @time_format == "delta_displayed"
           @generation += 1
-          @rows, @pending = {}, {}
+          @rows, @pending, @requests = {}, {}, {}
+          @batch_scheduled = false
         end
         self
       end
@@ -56,22 +58,41 @@ module Vanken
       private
 
       def request_row(number, index)
+        @pending[number] = @generation
+        @requests[number] = index
+        return if @batch_scheduled
+        @batch_scheduled = true
+        generation = @generation
+        @ui.app.executor.post { flush_rows if generation == @generation && @document.equal?(@ui.document) }
+      end
+
+      def flush_rows
         document, generation, format, precision = @document, @generation, @time_format, @precision
-        @pending[number] = generation
+        requests, @requests = @requests, {}
+        @batch_scheduled = false
         @ui.app.executor.background do
-          row = document.row(number)
-          values = row.slice(:source, :destination, :protocol, :length, :info).transform_values(&:to_s)
-          values[:time] = format_time(document, row, number, index, format, precision)
+          rows = requests.to_h do |number, index|
+            [number, row_values(document, number, index, format, precision)]
+          end
           @ui.app.executor.post do
             next unless generation == @generation && @ui.document.equal?(document)
-            @pending.delete(number)
-            @rows[number] = values
+            rows.each do |number, values|
+              @pending.delete(number)
+              @rows[number] = values if values
+            end
             @rows.shift while @rows.size > @limit
-            @ui.window.request_frame
+            @ui.window.request_frame if rows.any? { |_, values| values }
           end
-        rescue StandardError
-          @ui.app.executor.post { @pending.delete(number) if generation == @generation }
         end
+      end
+
+      def row_values(document, number, index, format, precision)
+        row = document.row(number)
+        values = row.slice(:source, :destination, :protocol, :length, :info).transform_values(&:to_s)
+        values[:time] = format_time(document, row, number, index, format, precision)
+        values
+      rescue StandardError
+        nil
       end
 
       def format_time(document, row, number, index, format, precision)

@@ -9,12 +9,17 @@ RSpec.describe Vanken::UI::PacketSource do
     def initialize = (@background, @posted = [], [])
     def background(&block) = @background << block
     def post(&block) = @posted << block
-    def finish
+    def background_count = @background.size
+    def posted_count = @posted.size
+    def work
       jobs, @background = @background, []
       Thread.new { jobs.each(&:call) }.join
+    end
+    def drain
       posts, @posted = @posted, []
       posts.each(&:call)
     end
+    def finish = (drain; work; drain)
   end
 
   before do
@@ -62,6 +67,56 @@ RSpec.describe Vanken::UI::PacketSource do
     @executor.finish
     expect(@source.row_id(0)).to eq(2)
     expect(@source.value(0, :no)).to eq("2")
+  end
+
+  it "fetches a viewport in one background batch and publishes all its cells once" do
+    expect(@ui.window).to receive(:request_frame).once
+    %i[time source protocol info].each do |key|
+      expect(@source.value(0, key)).to be_nil
+      expect(@source.value(1, key)).to be_nil
+    end
+    expect(@executor.background_count).to eq(0)
+    expect(@executor.posted_count).to eq(1)
+    @executor.drain
+    expect(@executor.background_count).to eq(1)
+    expect(@executor.posted_count).to eq(0)
+    @executor.work
+    expect(@executor.posted_count).to eq(1)
+    @executor.drain
+    expect(@source.value(0, :protocol)).to eq("TCP")
+    expect(@source.value(1, :time)).to eq("0.001000")
+    expect(@executor.background_count).to eq(0)
+    expect(@executor.posted_count).to eq(0)
+  end
+
+  it "rejects an earlier batch publication without clearing requests made after reset" do
+    expect(@ui.window).to receive(:request_frame).once
+    @source.value(0, :time)
+    @executor.drain
+    @executor.work
+    @document.sort(:no, :desc).wait
+    @source.reset
+    @source.value(0, :time)
+    @source.value(1, :time)
+    @executor.drain
+    expect(@source.value(1, :time)).to be_nil
+    @executor.finish
+    expect(@source.value(0, :time)).to eq("0.001000")
+    expect(@source.value(1, :time)).to eq("0.000000")
+  end
+
+  it "publishes successful rows and retries a failed row in the next batch" do
+    expect(@ui.window).to receive(:request_frame).twice
+    allow(@document).to receive(:row).and_call_original
+    allow(@document).to receive(:row).with(2).and_raise(IndexError, "transient row failure")
+    @source.value(0, :info)
+    @source.value(1, :info)
+    @executor.finish
+    expect(@source.value(0, :info)).to be_a(String)
+    expect(@source.value(1, :info)).to be_nil
+    allow(@document).to receive(:row).with(2).and_call_original
+    @executor.finish
+    expect(@source.value(1, :info)).to be_a(String)
   end
 
   it "honors the selected precision for absolute timestamps" do
