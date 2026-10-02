@@ -1,39 +1,82 @@
 # Vanken
 
-TODO: Delete this and the text below, and describe your gem
+A packet capture and inspection desktop application written in Ruby. Vanken reads pcap and pcapng files, displays a virtual packet list alongside protocol details and bytes, and filters captures with its own display filter language.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/vanken`. To experiment with that code, run `bin/console` for an interactive prompt.
+Packet acquisition runs in a separate helper. The desktop application and packet analysis run as a regular user. Raw frames are spooled to private files; slow filters use worker processes.
 
-## Installation
+## Requirements
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+- Ruby 3.3 or newer; Ruby 3.4 or 4.0 with YJIT is recommended.
+- Linux with a desktop session, or macOS. File inspection is also available on Windows; live capture uses Linux packet sockets or macOS BPF.
+- Linux desktop dependencies: Vulkan loader and drivers, fonts, and `zenity` for native file dialogs. On Ubuntu: `sudo apt install libvulkan1 mesa-vulkan-drivers fonts-dejavu-core fonts-noto-cjk zenity`.
 
-Install the gem and add to the application's Gemfile by executing:
+## Run from source
 
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```sh
+git clone https://github.com/ydah/vanken.git
+cd vanken
+bundle install
+bundle exec exe/vanken capture.pcapng
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Initial RubyGems publication is pending. To install a locally built gem:
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```sh
+gem build --strict vanken.gemspec
+gem install ./vanken-0.1.0.gem
+vanken capture.pcapng
 ```
 
-## Usage
+Open a capture from the toolbar, a recent file, or a file drop. Select a packet to inspect its protocol tree and bytes. Selecting a field highlights its bytes; selecting bytes finds the corresponding field. Columns can be sorted, resized, hidden, and reordered. Themes, font size, split positions, columns, and filter history persist between sessions.
 
-TODO: Write usage instructions here
+Enter a display filter and choose Apply, or press Enter in the filter field:
+
+```text
+tcp.port == 443
+ip.addr in {192.0.2.0/24, 198.51.100.5}
+tcp.flags.syn == true && tcp.flags.ack == false
+http.host contains "example"
+frame.len > 1000 && !udp
+```
+
+Vanken display filters (VDF) and acquisition filters (BPF) are separate languages. See [display filters](docs/filters.md) for operators, types, and repeated fields.
+
+## Capture
+
+Choose Start, select an interface, and optionally set a BPF acquisition filter. Stop preserves captured packets for inspection and saving. Vanken asks before discarding an unsaved capture.
+
+```sh
+bundle exec exe/vanken-capture --list-interfaces
+bundle exec exe/vanken-capture --check --interface lo
+```
+
+Direct acquisition works when the account already has permission. Privileged launching requires a root-owned installation with a fixed interpreter and dependencies; see [capture helper setup](packaging/README.md). Run the desktop application as a regular user.
+
+## Command line
+
+```sh
+bundle exec exe/vanken --headless --read capture.pcap --print-columns --filter 'tcp.port == 443'
+bundle exec exe/vanken --tui capture.pcapng
+bundle exec exe/vanken --headless --smoke
+```
+
+`--no-yjit` disables default YJIT activation. `--debug` enables debug logging. Preferences use safe YAML in the platform's user configuration directory; logs rotate without retaining raw packet bytes.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+```sh
+bundle install
+bundle exec rake
+bundle exec rake rbs
+bundle exec ruby script/generate_fixtures.rb --performance
+bundle exec ruby script/benchmark.rb
+script/capture-ci.sh
+```
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To develop with a sibling Zaniah checkout, set `VANKEN_ZANIAH_PATH=../zaniah` when running Bundler. Production dependencies are redhound `2.0.0.rc2` and Zaniah `~> 0.12.0`.
 
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/vanken.
+See [upstream contracts](docs/upstream.md), [measured performance](docs/performance.md), and [release procedure](docs/releases.md). Version 0.1 implements the file inspection, acquisition, and display filter milestones. Statistics, stream following, coloring, profiles, and later extensions are scheduled for subsequent releases.
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+[MIT](LICENSE.txt).

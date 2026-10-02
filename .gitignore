@@ -5,6 +5,7 @@
 /doc/
 /pkg/
 /spec/reports/
+/spec/fixtures/pcap/
 /tmp/
 /vendor/
 /*.gem

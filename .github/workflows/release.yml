@@ -1,0 +1,56 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: '3.4'
+      - run: bundle install
+      - name: Verify tag and version
+        run: test "${GITHUB_REF_NAME}" = "v$(ruby -Ilib -rvanken/version -e 'print Vanken::VERSION')"
+      - name: Test and build
+        run: |
+          bundle exec rake
+          gem build --strict vanken.gemspec --output /tmp/vanken.gem
+      - name: Check whether the gem was already published
+        id: published
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          status="$(curl -sS --retry 3 --max-time 30 -o "$RUNNER_TEMP/gem-version.json" -w '%{http_code}' "https://rubygems.org/api/v2/rubygems/vanken/versions/$version.json")"
+          case "$status" in
+            200) echo "exists=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "exists=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "RubyGems returned HTTP $status" >&2; exit 1 ;;
+          esac
+      - uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
+        if: steps.published.outputs.exists != 'true'
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## $version" '
+            $0 == heading || index($0, heading " ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"

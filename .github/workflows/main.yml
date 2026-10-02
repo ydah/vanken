@@ -1,32 +1,68 @@
-name: Ruby
-
-on:
-  push:
-    branches:
-      - main
-
-  pull_request:
-
+name: CI
+on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    name: Ruby ${{ matrix.ruby }}
+  test:
     strategy:
+      fail-fast: false
       matrix:
-        ruby:
-          - '4.0.6'
-
+        os: [ubuntu-latest]
+        ruby: ['3.3', '3.4', '4.0']
+        include:
+          - os: macos-latest
+            ruby: '3.4'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run the default task
-        run: bundle exec rake
+      - name: Check generated signatures
+        run: |
+          bundle exec rake rbs
+          git diff --exit-code -- sig
+          test -z "$(git ls-files --others --exclude-standard sig)"
+      - run: bundle exec rake
+      - run: gem build --strict vanken.gemspec
+
+  windows-files:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Check file inspection and filtering
+        run: bundle exec rspec spec/architecture spec/unit/display_filter spec/unit/cli_spec.rb spec/integration/document_spec.rb spec/integration/reassembly_filters_spec.rb
+      - run: gem build --strict vanken.gemspec
+
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Install desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan1 mesa-vulkan-drivers xvfb fonts-dejavu-core fonts-noto-cjk zenity
+      - name: Native packet inspection smoke
+        run: xvfb-run -a bundle exec ruby -Ilib script/native-smoke.rb

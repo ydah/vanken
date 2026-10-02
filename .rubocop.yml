@@ -1,0 +1,24 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.3
+  CacheRootDirectory: tmp/rubocop
+  Exclude:
+    - vendor/**/*
+    - tmp/**/*
+    - sig/**/*
+
+# Data#to_h is inherited; this override serializes nested detail nodes.
+Lint/DataDefineOverride:
+  Exclude:
+    - lib/vanken/core/frame.rb
+
+# :true is an AST tag; these requires keep Ruby 3.3 compatible with Ruby 4.0.
+Lint/BooleanSymbol:
+  Exclude:
+    - lib/vanken/core/display_filter/compiler.rb
+    - lib/vanken/core/display_filter/parser.rb
+Lint/RedundantRequireStatement:
+  Enabled: false
+Lint/ConstantDefinitionInBlock:
+  Exclude:
+    - spec/**/*
