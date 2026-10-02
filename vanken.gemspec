@@ -5,7 +5,7 @@ require_relative "lib/vanken/version"
 Gem::Specification.new do |spec|
   spec.name = "vanken"
   spec.version = Vanken::VERSION
-  spec.authors = ["ydah"]
+  spec.authors = ["Yudai Takada"]
   spec.email = ["t.yudai92@gmail.com"]
 
   spec.summary = "A pure Ruby graphical packet capture and analysis tool"
