@@ -52,18 +52,18 @@ The fresh parent RSS baseline was 48,922,624 bytes, rising to 232,603,648 bytes 
 
 ## Recorded x86_64 results
 
-The Linux shared runner used Ruby 3.4.10 with YJIT and Zaniah 0.12.0. [The complete benchmark and 5,000 deterministic fuzz cases](https://github.com/ydah/vanken/actions/runs/36966042551) finished without functional errors. Numeric targets are reported separately from job success.
+The Linux shared runner used Ruby 3.4.10 with YJIT and public Zaniah 0.12.1. [The complete benchmark and 5,000 deterministic fuzz cases](https://github.com/ydah/vanken/actions/runs/36975615332), at Vanken commit `5de8854`, finished without functional errors. These measurements precede the visible-row batching change. Numeric targets are reported separately from job success.
 
 | Measurement | Result | Target |
 | --- | ---: | ---: |
-| Receiver, 1,000,000 frames | 209,288 frames/s | ≥ 100,000 |
-| Ingest and analyze, 1,000,000 frames | 4,394 frames/s; 227.6002 s | ≥ 15,000; missed |
-| Parent / combined / after-filter RSS increment | 80.53 / 86.76 / 91.04 B per frame | ≤ 200 |
-| Fast / four-worker slow filter | 1.9022 / 21.8657 s | ≤ 3 / 60 s |
-| Static full application, total render p95 | 357.855 ms | ≤ 33 ms; missed |
-| Growing full application, scene p95 | 331.801 ms | ≤ 33 ms; missed |
+| Receiver, 1,000,000 frames | 219,407 frames/s | ≥ 100,000 |
+| Ingest and analyze, 1,000,000 frames | 4,849 frames/s; 206.2345 s | ≥ 15,000; missed |
+| Parent / combined / after-filter RSS increment | 81.56 / 85.64 / 92.03 B per frame | ≤ 200 |
+| Fast / four-worker slow filter | 1.8402 / 21.0254 s | ≤ 3 / 60 s |
+| Static full application, total / scene render p95 | 67.705 / 66.455 ms | ≤ 33 ms; missed |
+| Growing full application, scene p95 | 67.410 ms | ≤ 33 ms; missed |
 
-The synthetic growing source reached only 187.96 frames/s during sampling, so this run does not demonstrate responsiveness at 5,000 frames/s. An independent native run did deliver 4,963.99 frames/s within the pacing allowance, but active scene p95 was 230.321 ms, also missing the target.
+The synthetic growing source reached only 312.58 frames/s during sampling, so this run does not demonstrate responsiveness at 5,000 frames/s. An independent [native run](https://github.com/ydah/vanken/actions/runs/36975609974) did deliver 4,971.43 frames/s within the pacing allowance, but active scene p95 was 60.972 ms, also missing the target. All 25,256 frames completed without loss. Before the focus fix, the corresponding shared-runner scene p95 measurements were 331.801 ms for the growing application and 230.321 ms for native ingestion.
 
 Investigation reproduced a Zaniah focus-tree retention bug: a three-row tree retained 18 row handles after six renders. The fix included in Zaniah 0.12.1 releases render-created parent links between frames while preserving manual hierarchies. The same Linux arm64 container, Ruby 3.4.11 with YJIT, UID 1000, fonts, 4,096-packet document, 100 warm renders, and 120 scrolling samples were measured before and after changing only the Dispatcher implementation:
 
@@ -90,4 +90,8 @@ The same script creates a capture of at least 100 MB, measures the open operatio
 bundle exec ruby --yjit -Ilib script/capture-performance.rb --ui-only
 ```
 
-The native and synthetic runs above do not substitute for this five-minute Linux capture test. x86_64 results and the 100 MB operation-latency results must be recorded from their corresponding runs. Varied addresses, large TCP flow sets, reassembly, and plugins are outside the repeated-UDP benchmark's scope.
+On macOS arm64, Ruby 4.0.6 with YJIT and public Zaniah 0.12.1, a clean 100,000,032-byte capture containing 1,388,889 frames produced its first row in 300.377 ms, with 512 frames analyzed. Twenty different packet selections had p50 20.482 ms, p95 40.513 ms, and maximum 45.276 ms; the first selection took 40.403 ms. Both the first-row and every-selection targets passed in this single run. Pixel rasterization and native presentation were excluded.
+
+Before visible-row batching, the same operation failed its first selection at 105.252 ms. A separate diagnostic reproduced a 107.234 ms background queue wait behind 11 row jobs, while actual detail analysis took 2.677 ms and byte reading 0.129 ms. Nine intermediate renders consumed most of that wait. PacketSource now collects visible-row requests after rendering, fetches them in one background job, and publishes their values in one foreground update. The passing run followed this runtime change; the earlier failure remains part of the evidence.
+
+The native and synthetic runs above do not substitute for this five-minute Linux capture test. Varied addresses, large TCP flow sets, reassembly, and plugins are outside the repeated-UDP benchmark's scope.

@@ -26,6 +26,10 @@ module Vanken
 
       def request_row: (untyped number, untyped index) -> untyped
 
+      def flush_rows: () -> untyped
+
+      def row_values: (untyped document, untyped number, untyped index, untyped format, untyped precision) -> untyped
+
       def format_time: (untyped document, untyped row, untyped number, untyped index, untyped format, untyped precision) -> untyped
     end
   end
