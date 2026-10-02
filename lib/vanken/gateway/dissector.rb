@@ -164,6 +164,13 @@ module Vanken
           @names = (@fields.keys + @protocols).sort.freeze if changed
         end
       end
+      # @rbs (Hash[String, Hash[Symbol, untyped]] definitions) -> void
+      def merge(definitions)
+        @mutex.synchronize do
+          definitions.each { |name, definition| @fields[name] ||= definition.freeze }
+          @names = (@fields.keys + @protocols).sort.freeze unless definitions.empty?
+        end
+      end
     end
   end
 end

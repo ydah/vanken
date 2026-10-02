@@ -18,6 +18,10 @@ module Vanken
       def intern(value) = @ids.fetch(value) { @ids[value] = @values.length; @values << value.freeze; @values.length - 1 }
       # @rbs (Integer id) -> String
       def [](id) = @values.fetch(id)
+      # @rbs () -> Integer
+      def size = @values.size
+      # @rbs (Integer index) -> Array[String]
+      def since(index) = @values.drop(index)
     end
 
     class ColumnStore
@@ -27,6 +31,9 @@ module Vanken
       # @rbs! @protocol_ids: Hash[String, Integer]
       # @rbs! @protocol_names: Array[String]
       # @rbs! @transport_values: Hash[Integer, Hash[String, Array[Integer]]]
+      # @rbs! @base: Integer
+      # @rbs! @string_cursor: Integer
+      # @rbs! @protocol_cursor: Integer
       # @rbs () -> void
       def initialize
         @strings = InternTable.new
@@ -34,6 +41,7 @@ module Vanken
         @protocol_ids = {} #: Hash[String, Integer]
         @protocol_names = [] #: Array[String]
         @transport_values = {} #: Hash[Integer, Hash[String, Array[Integer]]]
+        @base = @string_cursor = @protocol_cursor = 0
       end
       # @rbs (column_values values) -> void
       def append(values)
@@ -44,7 +52,28 @@ module Vanken
         end
         @data << [@strings.intern(values[:source]), @strings.intern(values[:destination]), @strings.intern(values[:protocol]),
                   values[:src_port], values[:dst_port], values[:ip_proto], mask].pack(FORMAT)
-        @transport_values[@data.bytesize / SIZE] = values[:transport_values] if values[:transport_values]
+        @transport_values[@base + (@data.bytesize / SIZE)] = values[:transport_values] if values[:transport_values]
+      end
+      # Transfer a batch without retaining a second copy of every frame in the worker.
+      # @rbs () -> Hash[Symbol, untyped]
+      def drain
+        batch = {data: @data, strings: @strings.since(@string_cursor), protocols: @protocol_names.drop(@protocol_cursor), transport: @transport_values}
+        @base += @data.bytesize / SIZE
+        @string_cursor, @protocol_cursor = @strings.size, @protocol_names.size
+        @data, @transport_values = +"".b, {}
+        batch
+      end
+      # @rbs (Hash[Symbol, untyped] batch) -> void
+      def import(batch)
+        raise Vanken::Error, "invalid column batch" unless batch[:data].bytesize % SIZE == 0
+        batch[:strings].each { |value| @strings.intern(value) }
+        batch[:protocols].each do |name|
+          raise Vanken::Error, "invalid protocol dictionary" if @protocol_ids.key?(name) || @protocol_names.size >= 64
+          @protocol_ids[name] = @protocol_names.length
+          @protocol_names << name
+        end
+        @data << batch[:data]
+        @transport_values.merge!(batch[:transport])
       end
       # @rbs (Integer number) -> column_values
       def [](number)
@@ -54,7 +83,7 @@ module Vanken
       # @rbs (Integer number, String name) -> bool?
       def layer?(number, name)
         id = @protocol_ids[name]
-        id && (@data.byteslice(((number - 1) * SIZE) + 24, 8).unpack1("Q<") & (1 << id)) != 0
+        id && (@data.unpack1("Q<", offset: ((number - 1) * SIZE) + 24) & (1 << id)) != 0
       end
       # @rbs (Integer number, String name) -> Array[Integer]
       def port_values(number, name)
@@ -62,11 +91,22 @@ module Vanken
           names = name.end_with?(".port") ? [name.sub(".port", ".srcport"), name.sub(".port", ".dstport")] : [name]
           return names.flat_map { |field| Array(all[field]) }
         end
-        return [] unless layer?(number, name.split(".").first)
+        protocol = if name.start_with?("tcp.")
+          "tcp"
+        elsif name.start_with?("udp.")
+          "udp"
+        else
+          name.split(".").first
+        end
+        return [] unless layer?(number, protocol)
 
-        row = self[number]
-        name.end_with?(".port") ? [row[:src_port], row[:dst_port]].reject(&:negative?) :
-          [name.end_with?("srcport") ? row[:src_port] : row[:dst_port]].reject(&:negative?)
+        offset = ((number - 1) * SIZE) + 12
+        if name.end_with?(".port")
+          [@data.unpack1("l<", offset: offset), @data.unpack1("l<", offset: offset + 4)].reject(&:negative?)
+        else
+          offset += 4 unless name.end_with?("srcport")
+          [@data.unpack1("l<", offset: offset)].reject(&:negative?)
+        end
       end
     end
 
@@ -77,21 +117,38 @@ module Vanken
       attr_reader :streams #: Hash[Integer, Array[Integer]]
       attr_reader :experts #: Hash[Integer, Array[Hash[Symbol, untyped]]]
       # @rbs! @extra: Hash[Integer, Hash[String, untyped]]
-      # @rbs (String directory) -> void
-      def initialize(directory)
+      # @rbs! @io: File?
+      # @rbs (String directory, ?persist: bool) -> void
+      def initialize(directory, persist: true)
         @data = +"".b
         @extra, @streams, @experts = {}, Hash.new { |hash, key| hash[key] = [] }, {}
-        @io = File.open(File.join(directory, "annotations.bin"), "wb", 0o600)
+        @io = File.open(File.join(directory, "annotations.bin"), "wb", 0o600) if persist
       end
       # @rbs (Integer number, annotation_values annotation) -> void
       def append(number, annotation)
         flags = FLAGS.each_with_index.sum { |name, index| annotation[:analysis_flags].include?(name) ? 1 << index : 0 }
         record = [annotation[:tcp_stream], annotation[:seq_rel], annotation[:ack_rel], flags, annotation[:expert_max]].pack(FORMAT)
         @data << record
-        @io.write(record)
+        @io&.write(record)
         @streams[annotation[:tcp_stream]] << number if annotation[:tcp_stream] >= 0
         @experts[number] = annotation[:expert_items] unless annotation[:expert_items].empty?
         @extra[number] = annotation[:extra] unless annotation[:extra].empty?
+      end
+      # @rbs () -> Hash[Symbol, untyped]
+      def drain
+        batch = {data: @data, extras: @extra, streams: @streams.transform_values { |numbers| numbers }, experts: @experts}
+        @data = +"".b
+        @extra, @streams, @experts = {}, Hash.new { |hash, key| hash[key] = [] }, {}
+        batch
+      end
+      # @rbs (Hash[Symbol, untyped] batch) -> void
+      def import(batch)
+        raise Vanken::Error, "invalid annotation batch" unless batch[:data].bytesize % SIZE == 0
+        @io&.write(batch[:data])
+        @data << batch[:data]
+        @extra.merge!(batch[:extras])
+        @experts.merge!(batch[:experts])
+        batch[:streams].each { |stream, numbers| @streams[stream].concat(numbers) }
       end
       # @rbs (Integer number) -> annotation_values
       def [](number)
@@ -101,7 +158,7 @@ module Vanken
          expert_items: @experts.fetch(number, []), extra: @extra.fetch(number) { Hash.new }}
       end
       # @rbs () -> void
-      def flush = @io.flush
+      def flush = @io&.flush
       # @rbs (String path) -> String
       def snapshot(path)
         flush
@@ -109,7 +166,7 @@ module Vanken
         path
       end
       # @rbs () -> void
-      def close = @io.close
+      def close = @io&.close
     end
 
     class RowCache

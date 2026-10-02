@@ -17,6 +17,9 @@ module Vanken
 
       private
 
+      # @rbs () -> frame_metadata
+      def metadata: () -> frame_metadata
+
       # @rbs () -> column_values
       def column: () -> column_values
 

@@ -1,0 +1,19 @@
+# Generated from lib/vanken/capture/analyzer_wire.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    # These pipes are private to the same-user worker. Marshal.load only receives
+    # protocol messages serialized by our child, never an external serialized object.
+    module AnalyzerWire
+      VERSION: ::Integer
+
+      MAX_BYTES: untyped
+
+      def self.write: (untyped io, untyped value) -> untyped
+
+      def self.read: (untyped io, ?cancelled: untyped) -> untyped
+
+      def self.exact: (untyped io, untyped length, untyped cancelled) -> untyped
+    end
+  end
+end

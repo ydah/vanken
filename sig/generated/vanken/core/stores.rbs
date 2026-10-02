@@ -13,6 +13,12 @@ module Vanken
 
       # @rbs (Integer id) -> String
       def []: (Integer id) -> String
+
+      # @rbs () -> Integer
+      def size: () -> Integer
+
+      # @rbs (Integer index) -> Array[String]
+      def since: (Integer index) -> Array[String]
     end
 
     class ColumnStore
@@ -25,11 +31,21 @@ module Vanken
       # @rbs! @protocol_ids: Hash[String, Integer]
       # @rbs! @protocol_names: Array[String]
       # @rbs! @transport_values: Hash[Integer, Hash[String, Array[Integer]]]
+      # @rbs! @base: Integer
+      # @rbs! @string_cursor: Integer
+      # @rbs! @protocol_cursor: Integer
       # @rbs () -> void
       def initialize: () -> void
 
       # @rbs (column_values values) -> void
       def append: (column_values values) -> void
+
+      # Transfer a batch without retaining a second copy of every frame in the worker.
+      # @rbs () -> Hash[Symbol, untyped]
+      def drain: () -> Hash[Symbol, untyped]
+
+      # @rbs (Hash[Symbol, untyped] batch) -> void
+      def import: (Hash[Symbol, untyped] batch) -> void
 
       # @rbs (Integer number) -> column_values
       def []: (Integer number) -> column_values
@@ -53,11 +69,18 @@ module Vanken
       attr_reader experts: Hash[Integer, Array[Hash[Symbol, untyped]]]
 
       # @rbs! @extra: Hash[Integer, Hash[String, untyped]]
-      # @rbs (String directory) -> void
-      def initialize: (String directory) -> void
+      # @rbs! @io: File?
+      # @rbs (String directory, ?persist: bool) -> void
+      def initialize: (String directory, ?persist: bool) -> void
 
       # @rbs (Integer number, annotation_values annotation) -> void
       def append: (Integer number, annotation_values annotation) -> void
+
+      # @rbs () -> Hash[Symbol, untyped]
+      def drain: () -> Hash[Symbol, untyped]
+
+      # @rbs (Hash[Symbol, untyped] batch) -> void
+      def import: (Hash[Symbol, untyped] batch) -> void
 
       # @rbs (Integer number) -> annotation_values
       def []: (Integer number) -> annotation_values

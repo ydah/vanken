@@ -8,7 +8,7 @@ module Vanken
       def initialize(document, number, packet: nil, snapshot: nil)
         @document, @number, @packet = document, number, packet
         @snapshot = snapshot
-        @metadata = document.store.metadata(number) #: frame_metadata
+        @metadata = nil #: frame_metadata?
       end
       # @rbs (String name) -> bool
       def layer?(name) = @packet ? @packet.layer?(name) : !!@document.columns.layer?(@number, name)
@@ -18,14 +18,16 @@ module Vanken
       def values(name)
         case name
         when "frame.number" then [@number]
-        when "frame.len" then [@metadata[:original_length]]
-        when "frame.cap_len" then [@metadata[:caplen]]
-        when "frame.time_epoch" then [@metadata[:timestamp_ns] / 1e9]
+        when "frame.len" then [metadata[:original_length]]
+        when "frame.cap_len" then [metadata[:caplen]]
+        when "frame.time_epoch" then [metadata[:timestamp_ns] / 1e9]
         when "frame.time_relative" then [@document.time_value(@number, :relative, references: @snapshot&.fetch(:references))]
-        when "frame.time_delta" then [@number == 1 ? 0.0 : (@metadata[:timestamp_ns] - @document.store.metadata(@number - 1)[:timestamp_ns]) / 1e9]
+        when "frame.time_delta" then [@number == 1 ? 0.0 : (metadata[:timestamp_ns] - @document.store.metadata(@number - 1)[:timestamp_ns]) / 1e9]
         when "frame.time_delta_displayed" then [displayed_delta]
-        when "frame.interface_name" then @metadata[:interface] ? [@metadata[:interface]["name"]] : []
-        when "frame.direction" then @metadata[:direction] ? [@metadata[:direction].to_s] : []
+        when "frame.interface_name"
+          interface = metadata[:interface]
+          interface ? [interface["name"]] : []
+        when "frame.direction" then metadata[:direction] ? [metadata[:direction].to_s] : []
         when "frame.marked" then [(@snapshot ? @snapshot[:marked] : @document.marked).include?(@number)]
         when "frame.ignored" then [(@snapshot ? @snapshot[:ignored] : @document.ignored).include?(@number)]
         when "frame.protocols" then [column[:layers].join(":")]
@@ -46,6 +48,8 @@ module Vanken
         end
       end
       private
+      # @rbs () -> frame_metadata
+      def metadata = @metadata ||= @document.store.metadata(@number)
       # @rbs () -> column_values
       def column = @column ||= @packet ? @packet.columns : @document.columns[@number]
       # @rbs () -> annotation_values
@@ -57,7 +61,7 @@ module Vanken
         return @document.time_value(@number, :delta_displayed) unless @snapshot
 
         previous = @document.displayed_predecessor(@number, @snapshot)
-        previous > 0 ? (@metadata[:timestamp_ns] - @document.store.metadata(previous)[:timestamp_ns]) / 1e9 : 0.0
+        previous > 0 ? (metadata[:timestamp_ns] - @document.store.metadata(previous)[:timestamp_ns]) / 1e9 : 0.0
       end
     end
   end

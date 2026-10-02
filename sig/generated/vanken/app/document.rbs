@@ -35,7 +35,7 @@ module Vanken
 
       attr_accessor scanner: untyped
 
-      def initialize: (?on_update: untyped, ?preferences: untyped, ?store: untyped, ?scanner: untyped) -> untyped
+      def initialize: (?on_update: untyped, ?preferences: untyped, ?store: untyped, ?scanner: untyped, ?process_analysis: untyped) -> untyped
 
       def open: (untyped path) -> untyped
 
@@ -78,6 +78,11 @@ module Vanken
 
       def publish_failure: (untyped number, untyped error) -> untyped
 
+      # Only immutable context for this unpublished range crosses the worker pipe.
+      def analysis_configuration: (untyped first, untyped last) -> untyped
+
+      def publish_analysis_batch: (untyped batch, untyped analyzer, untyped generation, ?context_token: untyped) -> untyped
+
       def receiving_done: () -> untyped
 
       def analyzing_done: () -> untyped
@@ -97,6 +102,8 @@ module Vanken
       def close: () -> untyped
 
       private
+
+      def persisted_summary: (untyped number) -> untyped
 
       def persisted_details: (untyped number) -> untyped
 

@@ -105,6 +105,9 @@ module Vanken
 
       # @rbs (PacketView packet) -> void
       def observe: (PacketView packet) -> void
+
+      # @rbs (Hash[String, Hash[Symbol, untyped]] definitions) -> void
+      def merge: (Hash[String, Hash[Symbol, untyped]] definitions) -> void
     end
   end
 end

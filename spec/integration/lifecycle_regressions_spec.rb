@@ -42,7 +42,7 @@ RSpec.describe "document lifecycle regressions" do
   end
 
   it "publishes exactly one annotation record when incremental filtering fails" do
-    @document = Vanken::App::Document.new
+    @document = Vanken::App::Document.new(process_analysis: false)
     attempts = 0
     filter = Object.new
     filter.define_singleton_method(:match?) { |_| attempts += 1; raise "filter failure" if attempts == 1; true }

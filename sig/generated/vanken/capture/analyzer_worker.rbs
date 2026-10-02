@@ -1,0 +1,45 @@
+# Generated from lib/vanken/capture/analyzer_worker.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class AnalyzerWorker
+      class Reader
+        attr_accessor limit: untyped
+
+        attr_accessor interfaces: untyped
+
+        def initialize: (untyped directory) -> untyped
+
+        def metadata: (untyped number) -> untyped
+
+        def read: (untyped number) -> untyped
+
+        def close: () -> untyped
+
+        private
+
+        def read_at: (untyped io, untyped size, untyped offset) -> untyped
+      end
+
+      class Context
+        attr_reader store: untyped
+
+        def initialize: (untyped store) -> untyped
+
+        def time_value: (untyped number, untyped _format, references: untyped) -> untyped
+
+        def displayed_predecessor: (untyped number, untyped snapshot) -> untyped
+      end
+
+      def initialize: (untyped request) -> untyped
+
+      def analyze: (untyped request) -> untyped
+
+      def matches: (untyped request) -> untyped
+
+      def close: () -> untyped
+
+      def self.run: () -> untyped
+    end
+  end
+end

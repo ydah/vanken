@@ -7,6 +7,7 @@ require_relative "../core/frame_view"
 require_relative "../core/display_filter/compiler"
 require_relative "../capture/receiver"
 require_relative "../capture/analyzer"
+require_relative "../capture/analyzer_process"
 require_relative "document_jobs"
 
 module Vanken
@@ -17,12 +18,14 @@ module Vanken
                   :marked, :ignored, :time_references, :catalog, :analysis_options
       attr_accessor :frame_latency, :scanner
 
-      def initialize(on_update: nil, preferences: nil, store: nil, scanner: nil)
+      def initialize(on_update: nil, preferences: nil, store: nil, scanner: nil, process_analysis: true)
         @store = store || Core::FrameStore.new
         @columns = Core::ColumnStore.new
         @annotations = Core::AnnotationStore.new(@store.directory)
         @cache = Core::RowCache.new(limit: preferences&.get("packet_list.row_cache_rows") || 20_000)
-        @dissector = Gateway::Dissector.new(verify_checksums: preferences&.get("analysis.verify_checksums") || false)
+        @verify_checksums = preferences&.get("analysis.verify_checksums") || false
+        @dissector = Gateway::Dissector.new(verify_checksums: @verify_checksums)
+        @process_analysis = process_analysis
         @analysis_options = {max_state_bytes: (preferences&.get("analysis.max_state_mib") || 256) << 20,
                              max_flows: preferences&.get("analysis.max_flows") || 100_000}.freeze
         @catalog = Gateway::FieldCatalog.new
@@ -36,8 +39,14 @@ module Vanken
         @scan_concurrency = preferences&.get("analysis.workers") || 4
         @filter_tasks = []
         @details = File.open(File.join(@store.directory, "details.jsonl"), "w+b", 0o600)
+        @detail_reader = File.open(File.join(@store.directory, "details.jsonl"), "rb")
         @detail_index = File.open(File.join(@store.directory, "reassembled.idx"), "w+b", 0o600)
         @detail_offsets = {}
+        @summaries = File.open(File.join(@store.directory, "summaries.bin"), "w+b", 0o600)
+        @summary_index = File.open(File.join(@store.directory, "summaries.idx"), "w+b", 0o600)
+        @summary_reader = File.open(File.join(@store.directory, "summaries.bin"), "rb")
+        @summary_index_reader = File.open(File.join(@store.directory, "summaries.idx"), "rb")
+        @summary_count = 0
         @frame_latency = 0.0
       end
 
@@ -53,7 +62,12 @@ module Vanken
         @source ||= live ? :live : :file
         @dirty = live
         @reader = source
-        @jobs << thread { Capture::Analyzer.new(self, @dissector).run }
+        @analyzer = if @process_analysis
+          Capture::AnalyzerProcess.new(self, verify_checksums: @verify_checksums)
+        else
+          Capture::Analyzer.new(self, @dissector)
+        end
+        @jobs << thread { @analyzer.run }
         @jobs << thread { Capture::Receiver.new(self, source).run }
         self
       end
@@ -78,7 +92,7 @@ module Vanken
       def row(number)
         base = @mutex.synchronize { @columns[number] }
         frame = @store.metadata(number)
-        info = @cache.fetch(number) { persisted_details(number)&.fetch("info", nil) || packet(number).info }
+        info = @cache.fetch(number) { persisted_summary(number) || persisted_details(number)&.fetch("info", nil) || packet(number).info }
         base.merge(no: number, number: number, timestamp_ns: frame[:timestamp_ns], length: frame[:original_length], info: info)
       end
       def details(number)
@@ -133,6 +147,57 @@ module Vanken
         end
         notify
       end
+      # Only immutable context for this unpublished range crosses the worker pipe.
+      def analysis_configuration(first, last)
+        @mutex.synchronize do
+          historical = !!@filter_context
+          current = @filter_context || {marked: @marked, ignored: @ignored, references: @time_references,
+            predecessors: nil, limit: @count, last_displayed: @display ? @display.last : @count}
+          snapshot = current.merge(marked: current[:marked].select { |n| n.between?(first, last) }.to_set,
+            ignored: current[:ignored].select { |n| n.between?(first, last) }.to_set,
+            references: current[:references].dup, predecessors: nil,
+            unfiltered_predecessor: historical && current[:predecessors].nil?)
+          {expression: @filter&.expression || "", generation: @generation, snapshot: snapshot,
+           historical_context: historical, context_token: @filter_context&.object_id}
+        end
+      end
+      def publish_analysis_batch(batch, analyzer, generation, context_token: nil)
+        first, last = batch.values_at(:first, :last)
+        length = last - first + 1
+        raise Vanken::Error, "invalid analysis batch" unless length.between?(1, 256) &&
+          batch[:columns][:data].bytesize == length * Core::ColumnStore::SIZE &&
+          batch[:annotations][:data].bytesize == length * Core::AnnotationStore::SIZE && batch[:summary_index].bytesize == length * 8
+        loop do
+          committed = @mutex.synchronize do
+            raise Vanken::Error, "nonsequential analysis publication" unless first == @count + 1
+            next false if generation != @generation || context_token != @filter_context&.object_id
+            raise Vanken::Error, "invalid filter matches" unless batch[:matches].all? { |number| number.between?(first, last) } && batch[:matches] == batch[:matches].sort.uniq
+            @columns.import(batch[:columns])
+            @annotations.import(batch[:annotations])
+            batch[:details].each do |number, saved|
+              @detail_offsets[number] = @details.pos
+              @details.write(saved)
+              @detail_index.write([number, @detail_offsets[number]].pack("Q<Q<"))
+            end
+            base = @summaries.pos
+            offsets = batch[:summary_index].unpack("Q<*").map { |offset| base + offset }.pack("Q<*")
+            @summaries.write(batch[:summaries])
+            @summary_index.write(offsets)
+            [@annotations, @details, @detail_index, @summaries, @summary_index].each(&:flush)
+            @catalog.merge(batch[:fields])
+            @summary_count = @count = last
+            @dirty = true if @source == :live
+            @display.concat(batch[:matches]) if @display
+            true
+          end
+          break if committed
+          configuration = analysis_configuration(first, last)
+          batch[:matches] = analyzer.request(configuration.merge(command: :match)).fetch(:matches)
+          generation = configuration[:generation]
+          context_token = configuration[:context_token]
+        end
+        notify
+      end
       def receiving_done = (@received = true; signal)
       def analyzing_done = (@annotations.flush; @analyzed = true; notify(force: true))
       def signal = @mutex.synchronize { @condition.broadcast }
@@ -179,19 +244,40 @@ module Vanken
         wait(3)
         @annotations.close
         @details.close
+        @detail_reader.close
         @detail_index.close
+        @summaries.close
+        @summary_index.close
+        @summary_reader.close
+        @summary_index_reader.close
         @store.close
         @closed = true
         self
       end
 
       private
+      def persisted_summary(number)
+        return nil if number > @summary_count
+        if @summary_index_reader.respond_to?(:pread)
+          offset = @summary_index_reader.pread(8, (number - 1) * 8).unpack1("Q<")
+          length = @summary_reader.pread(4, offset).unpack1("L<")
+          length.zero? ? "" : @summary_reader.pread(length, offset + 4)
+        else
+          @mutex.synchronize do
+            @summary_index_reader.seek((number - 1) * 8)
+            offset = @summary_index_reader.read(8).unpack1("Q<")
+            @summary_reader.seek(offset)
+            length = @summary_reader.read(4).unpack1("L<")
+            length.zero? ? "" : @summary_reader.read(length)
+          end
+        end
+      end
       def persisted_details(number)
         @mutex.synchronize do
           offset = @detail_offsets[number]
           next nil unless offset
-          @details.seek(offset)
-          JSON.parse(@details.gets)
+          @detail_reader.seek(offset)
+          JSON.parse(@detail_reader.gets)
         end
       end
       def thread(&block)

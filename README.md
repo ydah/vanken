@@ -2,7 +2,7 @@
 
 A packet capture and inspection desktop application written in Ruby. Vanken reads pcap and pcapng files, displays a virtual packet list alongside protocol details and bytes, and filters captures with its own display filter language.
 
-Packet acquisition runs in a separate helper. The desktop application and packet analysis run as a regular user. Raw frames are spooled to private files; slow filters use worker processes.
+Packet acquisition runs in a separate helper; ordered packet analysis runs in another unprivileged process. The desktop application runs as a regular user. Raw frames and summaries are spooled to private files; slow filters use worker processes.
 
 ## Requirements
 

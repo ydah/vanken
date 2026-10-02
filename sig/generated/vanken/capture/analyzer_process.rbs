@@ -1,0 +1,17 @@
+# Generated from lib/vanken/capture/analyzer_process.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class AnalyzerProcess
+      attr_reader pid: untyped
+
+      def initialize: (untyped document, ?verify_checksums: untyped) -> untyped
+
+      def run: () -> untyped
+
+      def request: (untyped value) -> untyped
+
+      def shutdown: () -> untyped
+    end
+  end
+end
