@@ -19,6 +19,8 @@ Slow scans use a named ProcessPool handler with JSON-compatible immutable reques
 | Capture::Interface, writers, Capture::Stats | FileWriter; interface preservation and mixed-link pcap rejection |
 | Capture.interfaces, Capture.open, BPF compiler/verifier | Interfaces, LiveCapture, CaptureFilter; privileged integration |
 
+Regular files use the upstream reader directly. For pipes, FileReader supplies a buffered binary IO object to public `Redhound.open`, without replacing its parser or using private upstream classes. The adapter reads up to 64 KiB and waits only when the pipe has no data. One worker preserves partial records across consumer timeouts; its queue is limited to 256 packets and 64 MiB of packet payload. The parser can retain one additional packet of up to 16 MiB while waiting for that budget. EOF is published after queued packets drain. Stop wakes both IO and queue waits, joins the worker, and leaves caller-owned IO open.
+
 IP reassembly exposes a logical packet through `meta[:reassembled_packet]`. TCP analysis exposes fields and logical protocol details, but no stable complete TCP byte-buffer API is used. Logical fields are labeled reassembled and do not point into unrelated original-frame bytes. Separate reassembled byte tabs await a supported upstream contract.
 
 Helper stdout contains pcapng only; stderr contains versioned JSONL hello, started, stats, warning, error, and stopped events. SIGTERM and parent stdin EOF request orderly termination; signal handlers only change flags. Privileged launch checks root-owned wrappers and ancestors, uses argument arrays, and strips Ruby startup/dependency injection from inherited environment variables.

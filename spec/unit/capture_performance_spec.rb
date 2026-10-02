@@ -6,6 +6,18 @@ require "socket"
 require_relative "../../script/capture-performance"
 
 RSpec.describe VankenCapturePerformance do
+  it "measures live frames only when the application redraws its window" do
+    window = double("window", frame_number: 0, tick: nil)
+    document = double("document")
+    executor = double("executor", drain: nil)
+    ui = Struct.new(:app, :window, :document).new(Struct.new(:executor).new(executor), window, document)
+    expect(window).not_to receive(:render)
+    expect(described_class.tick_frame(ui)).to be_nil
+    allow(window).to receive(:tick) { allow(window).to receive(:frame_number).and_return(1) }
+    expect(document).to receive(:frame_latency=).with(be_a(Numeric))
+    expect(described_class.tick_frame(ui)).to be_a(Float)
+  end
+
   it "waits for background publication before drawing a clean window once" do
     window = Class.new do
       attr_reader :frame_number, :draws

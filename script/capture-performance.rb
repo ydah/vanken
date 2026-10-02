@@ -93,6 +93,18 @@ module VankenCapturePerformance
     elapsed * 1000
   end
 
+  def tick_frame(ui)
+    ui.app.executor.drain
+    previous_frame = ui.window.frame_number
+    started = now
+    ui.window.tick
+    return unless ui.window.frame_number > previous_frame
+
+    elapsed = now - started
+    ui.document.frame_latency = elapsed if ui.document
+    elapsed * 1000
+  end
+
   def await_frame(ui, _view, timeout: 30)
     deadline = now + timeout
     rendered_at = now if ui.window.frame_number.positive?
@@ -179,15 +191,19 @@ module VankenCapturePerformance
     growth = []
     next_sample = 0.0
     selected = false
+    last_rendered_count = ui.document.count
     deadline = started + duration + 90
     sender = nil
     loop do
       frame_start = now
-      count_before = ui.document.count
-      frames << render_frame(ui, view)
-      stages << ui.window.frame_stats.fetch(:frame_ms)
-      frame_starts << frame_start
-      growth << (ui.document.count > count_before)
+      if (frame_ms = tick_frame(ui))
+        frames << frame_ms
+        stages << ui.window.frame_stats.fetch(:frame_ms)
+        frame_starts << frame_start
+        rendered_count = ui.document.count
+        growth << (rendered_count > last_rendered_count)
+        last_rendered_count = rendered_count
+      end
       raise ui.capture.error if ui.capture.error
       raise ui.document.error if ui.document.error
       if !selected && ui.document.count.positive?
@@ -218,7 +234,7 @@ module VankenCapturePerformance
           ui.document.store.durable_count == expected && ui.document.count == expected
       end
       check(now < deadline, "live capture did not drain after traffic completed")
-      sleep([(1.0 / 60) - (now - frame_start), 0].max)
+      ui.app.executor.wait(0.05) unless ui.window.dirty? || ui.window.animation_active?
     end
     ui.capture.stop
     await_frame(ui, view) { ui.capture.wait(0) }
@@ -233,6 +249,7 @@ module VankenCapturePerformance
     active_frames = active_indices.map { |index| frames[index] }
     active_stages = active_indices.map { |index| stages[index] }
     result = {interface: "vkn-host", backend: "socket", direction: "in", filter: "udp dst port 54321",
+      ui_loop: "Application.run: executor drain, dirty-driven window tick, foreground wait; only actual rendered frames are sampled",
       uid: Process.uid, euid: Process.euid, sender: sender, stats: stats, samples: samples,
       backlog_scope: "Kernel pending is measured at helper stats.ts. Helper-to-durable compares that last control sample with a later GUI count and may be negative; it is not an atomic pipe depth. Analyzer count is read before durable count. Final counts are exact after helper shutdown and drain.",
       ui_frames: frames.size, render_p50_ms: percentile(frames, 0.50), render_p95_ms: percentile(frames, 0.95),
