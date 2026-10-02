@@ -272,7 +272,8 @@ module VankenCapturePerformance
     result
   rescue StandardError => error
     failure = {error: "#{error.class}: #{error.message}", helper_stats: ui.capture.stats,
-      durable: ui.document&.store&.durable_count, analyzed: ui.document&.count, samples: samples}
+      durable: ui.document&.store&.durable_count, analyzed: ui.document&.count, samples: samples,
+      sender: sender, render_ms: frames, inspection_frame_ms: stages, frame_started_monotonic: frame_starts}
     File.write(File.join(reports, "failure.json"), JSON.pretty_generate(failure) + "\n")
     raise
   ensure
