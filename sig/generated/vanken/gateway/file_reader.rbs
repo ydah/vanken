@@ -1,0 +1,32 @@
+# Generated from lib/vanken/gateway/file_reader.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class FileReader
+      include Enumerable[Core::Frame]
+
+      # @rbs (String | IO input) -> void
+      def initialize: (String | IO input) -> void
+
+      # @rbs (?timeout: Numeric?) -> Core::Frame?
+      def next_frame: (?timeout: Numeric?) -> Core::Frame?
+
+      # @rbs () { (Core::Frame) -> void } -> void
+      # @rbs () -> Enumerator[Core::Frame, void]
+      def each: () { (Core::Frame) -> void } -> void
+              | () -> Enumerator[Core::Frame, void]
+
+      # @rbs () -> bool
+      def eof?: () -> bool
+
+      # @rbs () -> void
+      def stop: () -> void
+
+      # @rbs () -> void
+      def close: () -> void
+
+      # @rbs () -> Redhound::Capture::Stats
+      def stats: () -> Redhound::Capture::Stats
+    end
+  end
+end

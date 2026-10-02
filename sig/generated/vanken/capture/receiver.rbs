@@ -1,0 +1,15 @@
+# Generated from lib/vanken/capture/receiver.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class Receiver
+      def initialize: (untyped document, untyped source) -> untyped
+
+      def run: () -> untyped
+
+      private
+
+      def each_frame: () -> untyped
+    end
+  end
+end

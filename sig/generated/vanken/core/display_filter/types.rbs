@@ -1,0 +1,45 @@
+# Generated from lib/vanken/core/display_filter/types.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      module Types
+        NUMERIC: untyped
+
+        ORDERED: untyped
+
+        SEVERITIES: untyped
+
+        # @rbs (Predicate predicate, field_type? type) -> ^(untyped, field_type?) -> bool
+        def self?.predicate: (Predicate predicate, field_type? type) -> ^(untyped, field_type?) -> bool
+
+        # @rbs (Symbol operator, field_type? type, Token token) -> void
+        def self?.validate_operator: (Symbol operator, field_type? type, Token token) -> void
+
+        # @rbs (Array[Member] members, field_type? type) -> Array[prepared_member]
+        def self?.prepare_members: (Array[Member] members, field_type? type) -> Array[prepared_member]
+
+        # @rbs (Token token, field_type? type) -> untyped
+        def self?.literal: (Token token, field_type? type) -> untyped
+
+        # @rbs (untyped value, field_type? type) -> untyped
+        def self?.actual_value: (untyped value, field_type? type) -> untyped
+
+        # @rbs (untyped actual, Token token) -> field_type
+        def self?.infer_type: (untyped actual, Token token) -> field_type
+
+        # @rbs (untyped value, Symbol operator, Array[prepared_member] members, Regexp? regex, field_type? type) -> bool
+        def self?.compare: (untyped value, Symbol operator, Array[prepared_member] members, Regexp? regex, field_type? type) -> bool
+
+        # @rbs (untyped value) -> String
+        def self?.normalized_mac: (untyped value) -> String
+
+        # @rbs (Token token) -> Regexp
+        def self?.regular_expression: (Token token) -> Regexp
+
+        # @rbs (String message, Token token) -> bot
+        def self?.fail_at: (String message, Token token) -> bot
+      end
+    end
+  end
+end

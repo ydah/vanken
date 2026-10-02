@@ -1,0 +1,45 @@
+# Generated from lib/vanken/core/display_filter/compiler.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      class Program
+        attr_reader expression: String
+
+        attr_reader fields: Array[String]
+
+        attr_reader sources: Array[Symbol]
+
+        attr_reader warnings: Array[String]
+
+        # @rbs (expression: String, fields: Array[String], sources: Array[Symbol], warnings: Array[String], evaluator: ^(untyped) -> bool) -> void
+        def initialize: (expression: String, fields: Array[String], sources: Array[Symbol], warnings: Array[String], evaluator: ^(untyped) -> bool) -> void
+
+        # @rbs (_FilterView view) -> bool
+        def match?: (_FilterView view) -> bool
+
+        # @rbs () -> bool
+        def fast?: () -> bool
+      end
+
+      class Compiler
+        # @rbs (?catalog: untyped) -> void
+        def initialize: (?catalog: untyped) -> void
+
+        # @rbs (String expression) -> Program
+        def compile: (String expression) -> Program
+
+        private
+
+        # @rbs (Node node) -> ^(untyped) -> bool
+        def compile_node: (Node node) -> ^(untyped) -> bool
+
+        # @rbs (Node node) -> ^(untyped) -> bool
+        def compile_test: (Node node) -> ^(untyped) -> bool
+      end
+
+      # @rbs (String expression, ?catalog: untyped) -> Program
+      def self.compile: (String expression, ?catalog: untyped) -> Program
+    end
+  end
+end

@@ -1,0 +1,110 @@
+# Generated from lib/vanken/gateway/dissector.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    PROTOCOLS: untyped
+
+    module Severity
+      # @rbs (Symbol? value) -> Symbol?
+      def self.normalize: (Symbol? value) -> Symbol?
+
+      # @rbs (Symbol? value) -> Integer
+      def self.rank: (Symbol? value) -> Integer
+    end
+
+    class Dissector
+      attr_reader registry: Redhound::Registry
+
+      # @rbs (?verify_checksums: bool, ?decode_as: Array[String], ?plugins: Array[String]) -> void
+      def initialize: (?verify_checksums: bool, ?decode_as: Array[String], ?plugins: Array[String]) -> void
+
+      # @rbs (Core::Frame frame) -> PacketView
+      def dissect: (Core::Frame frame) -> PacketView
+
+      # @rbs (Core::Frame frame, ?interfaces: Hash[Hash[String, untyped], Redhound::Capture::Interface]) -> Redhound::Packet
+      def self.packet: (Core::Frame frame, ?interfaces: Hash[Hash[String, untyped], Redhound::Capture::Interface]) -> Redhound::Packet
+    end
+
+    class PacketView
+      attr_reader raw_packet: Redhound::Packet
+
+      # @rbs (Redhound::Packet packet, Redhound::Registry registry) -> void
+      def initialize: (Redhound::Packet packet, Redhound::Registry registry) -> void
+
+      # @rbs (String name) -> Array[untyped]
+      def values: (String name) -> Array[untyped]
+
+      # @rbs (String name) -> bool
+      def layer?: (String name) -> bool
+
+      # @rbs () -> Array[Redhound::Field]
+      def fields: () -> Array[Redhound::Field]
+
+      # @rbs (String name) -> Symbol?
+      def field_type: (String name) -> Symbol?
+
+      # @rbs () -> Array[Redhound::Layer]
+      def layers: () -> Array[Redhound::Layer]
+
+      # @rbs () -> String
+      def bytes: () -> String
+
+      # @rbs () -> Hash[Symbol, untyped]
+      def to_h: () -> Hash[Symbol, untyped]
+
+      # @rbs () -> Array[Hash[Symbol, untyped]]
+      def diagnostics: () -> Array[Hash[Symbol, untyped]]
+
+      # @rbs () -> Core::column_values
+      def columns: () -> Core::column_values
+
+      # @rbs () -> String
+      def info: () -> String
+
+      # @rbs () -> Core::annotation_values
+      def annotations: () -> Core::annotation_values
+
+      # @rbs () -> bool
+      def reassembled?: () -> bool
+
+      # @rbs (Redhound::Layer layer) -> (:frame | :reassembled)
+      def layer_source: (Redhound::Layer layer) -> (:frame | :reassembled)
+
+      private
+
+      # @rbs (untyped value) -> String
+      def safe_text: (untyped value) -> String
+
+      # @rbs (Redhound::Layer? layer, Symbol direction) -> String
+      def address_text: (Redhound::Layer? layer, Symbol direction) -> String
+    end
+
+    class Analysis
+      # @rbs (?registry: Redhound::Registry, **untyped options) -> void
+      def initialize: (?registry: Redhound::Registry, **untyped options) -> void
+
+      # @rbs (PacketView packet) -> void
+      def update: (PacketView packet) -> void
+
+      # @rbs () -> void
+      def close: () -> void
+    end
+
+    class FieldCatalog
+      # @rbs () -> void
+      def initialize: () -> void
+
+      # @rbs () -> Array[String]
+      def names: () -> Array[String]
+
+      # @rbs (String name) -> Hash[Symbol, untyped]?
+      def lookup: (String name) -> Hash[Symbol, untyped]?
+
+      # @rbs (String name) -> bool
+      def protocol?: (String name) -> bool
+
+      # @rbs (PacketView packet) -> void
+      def observe: (PacketView packet) -> void
+    end
+  end
+end

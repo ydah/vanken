@@ -1,0 +1,48 @@
+# Generated from lib/vanken/core/display_filter/field_resolver.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      class Reference < Data
+        attr_reader name(): String
+
+        attr_reader type(): field_type?
+
+        attr_reader source(): Symbol
+
+        attr_reader protocol(): bool
+
+        attr_reader known(): bool
+
+        def self.new: (String name, field_type? type, Symbol source, bool protocol, bool known) -> instance
+                    | (name: String, type: field_type?, source: Symbol, protocol: bool, known: bool) -> instance
+
+        def self.members: () -> [ :name, :type, :source, :protocol, :known ]
+
+        def members: () -> [ :name, :type, :source, :protocol, :known ]
+      end
+
+      class FieldResolver
+        PROTOCOLS: untyped
+
+        FRAME_FIELDS: untyped
+
+        VIRTUAL_FIELDS: untyped
+
+        # @rbs (?untyped catalog) -> void
+        def initialize: (?untyped catalog) -> void
+
+        # @rbs (String name) -> Reference
+        def resolve: (String name) -> Reference
+
+        # @rbs (untyped type) -> field_type?
+        def normalize_type: (untyped type) -> field_type?
+
+        private
+
+        # @rbs (untyped entry, Symbol key) -> untyped
+        def metadata: (untyped entry, Symbol key) -> untyped
+      end
+    end
+  end
+end

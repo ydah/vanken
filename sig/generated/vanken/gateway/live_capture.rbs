@@ -1,0 +1,48 @@
+# Generated from lib/vanken/gateway/live_capture.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class LiveCapture
+      class Error < StandardError
+        attr_reader code: String
+
+        attr_reader exit_code: Integer
+
+        # @rbs (String message, code: String, ?exit_code: Integer) -> void
+        def initialize: (String message, code: String, ?exit_code: Integer) -> void
+      end
+
+      attr_reader backend: Symbol
+
+      # @rbs (interface: String, ?backend: Symbol | String, ?snaplen: Integer, ?promiscuous: bool, ?buffer_size: Integer?, ?direction: Symbol, ?filter: String?) -> LiveCapture
+      def self.open: (interface: String, ?backend: Symbol | String, ?snaplen: Integer, ?promiscuous: bool, ?buffer_size: Integer?, ?direction: Symbol, ?filter: String?) -> LiveCapture
+
+      # @rbs (Redhound::Capture::Source source) -> void
+      def initialize: (Redhound::Capture::Source source) -> void
+
+      # @rbs (?timeout: Numeric?) -> Redhound::Packet?
+      def next_packet: (?timeout: Numeric?) -> Redhound::Packet?
+
+      # @rbs () -> bool
+      def stopped?: () -> bool
+
+      # @rbs () -> Hash[Symbol, Integer]
+      def stats: () -> Hash[Symbol, Integer]
+
+      # @rbs () -> Integer
+      def linktype: () -> Integer
+
+      # @rbs () -> Array[Hash[Symbol, untyped]]
+      def interfaces: () -> Array[Hash[Symbol, untyped]]
+
+      # @rbs () -> void
+      def stop: () -> void
+
+      # @rbs () -> void
+      def close: () -> void
+
+      # @rbs () -> String
+      def self.version: () -> String
+    end
+  end
+end

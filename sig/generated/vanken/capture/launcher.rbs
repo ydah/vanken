@@ -1,0 +1,60 @@
+# Generated from lib/vanken/capture/launcher.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class Launcher
+      class Unavailable < StandardError
+      end
+
+      WRAPPER: ::String
+
+      SAFE_ENV: untyped
+
+      class Handle
+        attr_reader pid: untyped
+
+        attr_reader stdin: untyped
+
+        attr_reader stdout: untyped
+
+        attr_reader stderr: untyped
+
+        attr_reader status: untyped
+
+        def initialize: (untyped pid, untyped stdin, untyped stdout, untyped stderr) -> untyped
+
+        def wait: (?timeout: untyped) -> untyped
+
+        def stop: (?timeout: untyped) -> untyped
+
+        def close: () -> untyped
+
+        private
+
+        def signal: (untyped signal) -> untyped
+
+        def monotonic: () -> untyped
+      end
+
+      def initialize: (?strategy: untyped, ?wrapper: untyped, ?direct_command: untyped, ?askpass: untyped, ?env: untyped) -> untyped
+
+      def launch: (?untyped options, ?strategy: untyped) -> untyped
+
+      def command_for: (untyped strategy, untyped args) -> untyped
+
+      def self.trusted_path?: (untyped path) -> untyped
+
+      private
+
+      def spawn: (untyped command, ?untyped extra_env) -> untyped
+
+      def automatic_strategy: (untyped args) -> untyped
+
+      def trusted_path!: (untyped path) -> untyped
+
+      def executable: (untyped name) -> untyped
+
+      def capture_argv: (untyped options) -> untyped
+    end
+  end
+end

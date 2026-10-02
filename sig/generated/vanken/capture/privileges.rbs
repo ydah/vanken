@@ -1,0 +1,12 @@
+# Generated from lib/vanken/capture/privileges.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    module Privileges
+      class Error < StandardError
+      end
+
+      def self.drop!: (untyped uid, untyped gid) -> untyped
+    end
+  end
+end

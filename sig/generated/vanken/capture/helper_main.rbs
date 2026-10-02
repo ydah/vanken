@@ -1,0 +1,23 @@
+# Generated from lib/vanken/capture/helper_main.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class HelperMain
+      def initialize: (?stdin: untyped, ?stdout: untyped, ?stderr: untyped, ?env: untyped) -> untyped
+
+      def run: (untyped argv) -> untyped
+
+      private
+
+      def capture: (untyped options) -> untyped
+
+      def check: (untyped options) -> untyped
+
+      def drop_target: () -> untyped
+
+      def failure: (untyped code, untyped message, untyped exit_code) -> untyped
+
+      def monotonic: () -> untyped
+    end
+  end
+end

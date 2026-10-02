@@ -1,0 +1,16 @@
+# Generated from lib/vanken/core/display_filter/errors.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      class SyntaxError < StandardError
+        attr_reader position: Integer
+
+        attr_reader length: Integer
+
+        # @rbs (String message, position: Integer, ?length: Integer) -> void
+        def initialize: (String message, position: Integer, ?length: Integer) -> void
+      end
+    end
+  end
+end

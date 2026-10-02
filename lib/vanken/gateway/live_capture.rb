@@ -8,22 +8,26 @@ module Vanken
   module Gateway
     class LiveCapture
       class Error < StandardError
-        attr_reader :code, :exit_code
+        attr_reader :code #: String
+        attr_reader :exit_code #: Integer
 
+        # @rbs (String message, code: String, ?exit_code: Integer) -> void
         def initialize(message, code:, exit_code: 1)
           @code, @exit_code = code, exit_code
           super(message)
         end
       end
 
-      attr_reader :backend
+      attr_reader :backend #: Symbol
 
-      def self.open(**options)
-        interface = Interfaces.find(options.fetch(:interface))
-        if options[:filter] && !options[:filter].empty?
-          CaptureFilter.compile(options[:filter], linktype: interface[:linktype], snaplen: options.fetch(:snaplen, 262_144), live: RUBY_PLATFORM.include?("linux"))
+      # @rbs (interface: String, ?backend: Symbol | String, ?snaplen: Integer, ?promiscuous: bool, ?buffer_size: Integer?, ?direction: Symbol, ?filter: String?) -> LiveCapture
+      def self.open(interface:, backend: :auto, snaplen: 262_144, promiscuous: true, buffer_size: nil, direction: :inout, filter: nil)
+        metadata = Interfaces.find(interface)
+        if filter && !filter.empty?
+          CaptureFilter.compile(filter, linktype: metadata[:linktype], snaplen: snaplen, live: RUBY_PLATFORM.include?("linux"))
         end
-        new(Redhound::Capture.open(**options))
+        new(Redhound::Capture.open(interface: interface, backend: backend, snaplen: snaplen, promiscuous: promiscuous,
+          buffer_size: buffer_size, direction: direction, filter: filter))
       rescue Interfaces::NotFound, Redhound::InterfaceNotFound => e
         raise Error.new(e.message, code: "interface_not_found")
       rescue CaptureFilter::Error, Redhound::FilterError => e
@@ -36,6 +40,7 @@ module Vanken
         raise Error.new(e.message, code: "backend_unavailable")
       end
 
+      # @rbs (Redhound::Capture::Source source) -> void
       def initialize(source)
         @source = source
         @backend = case source
@@ -46,10 +51,15 @@ module Vanken
                    end
       end
 
+      # @rbs (?timeout: Numeric?) -> Redhound::Packet?
       def next_packet(timeout: 0.05) = @source.next_packet(timeout: timeout)
+      # @rbs () -> bool
       def stopped? = @source.stopped?
+      # @rbs () -> Hash[Symbol, Integer]
       def stats = @source.stats.to_h
+      # @rbs () -> Integer
       def linktype = @source.linktype
+      # @rbs () -> Array[Hash[Symbol, untyped]]
       def interfaces
         @source.interfaces.map do |interface|
           {name: interface.name, linktype: interface.linktype, snaplen: interface.snaplen,
@@ -57,9 +67,12 @@ module Vanken
         end
       end
 
+      # @rbs () -> void
       def stop = @source.stop
+      # @rbs () -> void
       def close = @source.close
 
+      # @rbs () -> String
       def self.version = Redhound::VERSION
     end
   end

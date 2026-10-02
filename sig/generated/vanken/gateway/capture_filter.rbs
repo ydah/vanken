@@ -1,0 +1,17 @@
+# Generated from lib/vanken/gateway/capture_filter.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    module CaptureFilter
+      class Error < StandardError
+        attr_reader position: Integer?
+
+        # @rbs (String message, ?position: Integer?) -> void
+        def initialize: (String message, ?position: Integer?) -> void
+      end
+
+      # @rbs (String expression, ?linktype: Integer, ?snaplen: Integer, ?live: bool) -> Redhound::Filter::Program
+      def self.compile: (String expression, ?linktype: Integer, ?snaplen: Integer, ?live: bool) -> Redhound::Filter::Program
+    end
+  end
+end

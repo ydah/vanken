@@ -1,0 +1,49 @@
+# Generated from lib/vanken/core/display_filter/lexer.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      class Token < Data
+        attr_reader type(): Symbol
+
+        attr_reader value(): untyped
+
+        attr_reader position(): Integer
+
+        attr_reader length(): Integer
+
+        attr_reader raw(): String
+
+        def self.new: (Symbol type, untyped value, Integer position, Integer length, String raw) -> instance
+                    | (type: Symbol, value: untyped, position: Integer, length: Integer, raw: String) -> instance
+
+        def self.members: () -> [ :type, :value, :position, :length, :raw ]
+
+        def members: () -> [ :type, :value, :position, :length, :raw ]
+      end
+
+      class Lexer
+        OPERATORS: untyped
+
+        PUNCTUATION: untyped
+
+        # @rbs (String expression) -> void
+        def initialize: (String expression) -> void
+
+        # @rbs () -> Array[Token]
+        def tokens: () -> Array[Token]
+
+        private
+
+        # @rbs (Integer position) -> String
+        def read_string: (Integer position) -> String
+
+        # @rbs (String raw, Integer position) -> [Symbol, untyped]
+        def classify: (String raw, Integer position) -> [ Symbol, untyped ]
+
+        # @rbs (String message, Integer position, Integer length) -> bot
+        def fail_at: (String message, Integer position, Integer length) -> bot
+      end
+    end
+  end
+end

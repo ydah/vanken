@@ -1,0 +1,21 @@
+# Generated from lib/vanken/gateway/detail_builder.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class DetailBuilder
+      # @rbs (PacketView packet, ?annotations: Core::annotation_values?) -> Array[Core::DetailNode]
+      def build: (PacketView packet, ?annotations: Core::annotation_values?) -> Array[Core::DetailNode]
+
+      private
+
+      # @rbs (untyped value, ?Symbol? type) -> String
+      def literal: (untyped value, ?Symbol? type) -> String
+
+      # @rbs (untyped value) -> String
+      def escape: (untyped value) -> String
+
+      # @rbs (String id, String label, ?field: String?, ?offset: Integer?, ?length: Integer, ?source: Symbol, ?severity: Symbol?, ?filter: String?, ?children: Array[Core::DetailNode]) -> Core::DetailNode
+      def node: (String id, String label, ?field: String?, ?offset: Integer?, ?length: Integer, ?source: Symbol, ?severity: Symbol?, ?filter: String?, ?children: Array[Core::DetailNode]) -> Core::DetailNode
+    end
+  end
+end

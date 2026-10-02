@@ -1,0 +1,27 @@
+# Generated from lib/vanken/app/document_jobs.rb with RBS::Inline
+
+module Vanken
+  module App
+    module DocumentJobs
+      def apply_filter: (untyped expression) -> untyped
+
+      def cancel_scan: () -> untyped
+
+      def filter_payload: (untyped first, untyped last, ?expression: untyped, ?snapshot: untyped) -> untyped
+
+      def displayed_predecessor: (untyped number, untyped snapshot) -> untyped
+
+      def sort: (untyped key, ?untyped direction) -> untyped
+
+      def save: (untyped path, ?format: untyped, ?numbers: untyped) -> untyped
+
+      def wait_for_save: (?untyped timeout) -> untyped
+
+      private
+
+      def stale_job?: (untyped generation) -> untyped
+
+      def filter_snapshot: () -> untyped
+    end
+  end
+end

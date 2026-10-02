@@ -7,11 +7,11 @@ module Vanken
       def initialize(document, source) = (@document, @source = document, source)
       def run
         flushed_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        @source.each do |frame|
+        each_frame do |frame|
           break if @document.cancelled?
-          number = @document.store.append(frame)
+          number = @document.store.append(frame) if frame
           now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          if number % 256 == 0 || now - flushed_at >= 0.05 || number == 50
+          if (number && (number % 256 == 0 || number == 50)) || now - flushed_at >= 0.05
             @document.store.flush
             @document.signal
             flushed_at = now
@@ -23,6 +23,15 @@ module Vanken
         @document.store.flush
         @document.receiving_done
         @source.close if @source.respond_to?(:close)
+      end
+      private
+      def each_frame
+        return @source.each { |frame| yield frame } unless @source.respond_to?(:next_frame)
+
+        until @document.cancelled?
+          yield @source.next_frame(timeout: 0.05)
+          break if @source.eof?
+        end
       end
     end
   end

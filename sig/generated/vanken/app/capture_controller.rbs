@@ -1,0 +1,58 @@
+# Generated from lib/vanken/app/capture_controller.rb with RBS::Inline
+
+module Vanken
+  module App
+    class CaptureController
+      class Error < Vanken::CaptureError
+        attr_reader code: untyped
+
+        def initialize: (untyped message, ?code: untyped) -> untyped
+      end
+
+      def initialize: (?launcher: untyped, ?preferences: untyped, ?on_update: untyped, ?on_document: untyped) -> untyped
+
+      def state: () -> untyped
+
+      def stats: () -> untyped
+
+      def error: () -> untyped
+
+      def warning: () -> untyped
+
+      def document: () -> untyped
+
+      def options: () -> untyped
+
+      def capturing?: () -> untyped
+
+      def running?: () -> untyped
+
+      def snapshot: () -> untyped
+
+      def start: (untyped options) -> untyped
+
+      def stop: () -> untyped
+
+      def wait: (?untyped timeout, **untyped options) -> untyped
+
+      alias await wait
+
+      def close: () -> untyped
+
+      private
+
+      def run: () -> untyped
+
+      def consume_control: (untyped io) -> untyped
+
+      # Called under @mutex; the helper stop runs separately so UI callbacks never wait for it.
+      def stop_helper: () -> untyped
+
+      def fail_capture: (untyped error, ?replace: untyped) -> untyped
+
+      def thread: () ?{ (?) -> untyped } -> untyped
+
+      def notify: () -> untyped
+    end
+  end
+end

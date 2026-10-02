@@ -1,0 +1,33 @@
+# Generated from lib/vanken/core/frame_view.rb with RBS::Inline
+
+module Vanken
+  module Core
+    class FrameView
+      # @rbs (App::Document document, Integer number, ?packet: Gateway::PacketView?, ?snapshot: Hash[Symbol, untyped]?) -> void
+      def initialize: (App::Document document, Integer number, ?packet: Gateway::PacketView?, ?snapshot: Hash[Symbol, untyped]?) -> void
+
+      # @rbs (String name) -> bool
+      def layer?: (String name) -> bool
+
+      # @rbs (String name) -> Symbol?
+      def field_type: (String name) -> Symbol?
+
+      # @rbs (String name) -> Array[untyped]
+      def values: (String name) -> Array[untyped]
+
+      private
+
+      # @rbs () -> column_values
+      def column: () -> column_values
+
+      # @rbs () -> annotation_values
+      def annotation: () -> annotation_values
+
+      # @rbs () -> Gateway::PacketView | Gateway::PacketSnapshot
+      def packet: () -> Gateway::PacketView
+
+      # @rbs () -> Float
+      def displayed_delta: () -> Float
+    end
+  end
+end

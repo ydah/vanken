@@ -1,0 +1,63 @@
+# Generated from lib/vanken/core/frame.rb with RBS::Inline
+
+module Vanken
+  module Core
+    class Frame < Data
+      attr_reader bytes(): String
+
+      attr_reader timestamp_ns(): Integer
+
+      attr_reader original_length(): Integer
+
+      attr_reader linktype(): Integer
+
+      attr_reader interface(): Hash[String, untyped]?
+
+      attr_reader direction(): (:in | :out)?
+
+      attr_reader number(): Integer
+
+      def self.new: (String bytes, Integer timestamp_ns, Integer original_length, Integer linktype, Hash[String, untyped]? interface, (:in | :out)? direction, Integer number) -> instance
+                  | (bytes: String, timestamp_ns: Integer, original_length: Integer, linktype: Integer, interface: Hash[String, untyped]?, direction: (:in | :out)?, number: Integer) -> instance
+
+      def self.members: () -> [ :bytes, :timestamp_ns, :original_length, :linktype, :interface, :direction, :number ]
+
+      def members: () -> [ :bytes, :timestamp_ns, :original_length, :linktype, :interface, :direction, :number ]
+    end
+
+    class DetailNode < Data
+      attr_reader id(): String
+
+      attr_reader label(): String
+
+      attr_reader field(): String?
+
+      attr_reader offset(): Integer?
+
+      attr_reader length(): Integer
+
+      attr_reader source(): Symbol
+
+      attr_reader severity(): Symbol?
+
+      attr_reader filter(): String?
+
+      attr_reader children(): Array[DetailNode]
+
+      def self.new: (String id, String label, String? field, Integer? offset, Integer length, Symbol source, Symbol? severity, String? filter, Array[DetailNode] children) -> instance
+                  | (id: String, label: String, field: String?, offset: Integer?, length: Integer, source: Symbol, severity: Symbol?, filter: String?, children: Array[DetailNode]) -> instance
+
+      def self.members: () -> [ :id, :label, :field, :offset, :length, :source, :severity, :filter, :children ]
+
+      def members: () -> [ :id, :label, :field, :offset, :length, :source, :severity, :filter, :children ]
+    end
+
+    class DetailNode
+      # @rbs () -> Array[DetailNode]
+      def descendants: () -> Array[DetailNode]
+
+      # @rbs () -> Hash[Symbol, untyped]
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+  end
+end

@@ -1,0 +1,11 @@
+# Generated from lib/vanken/capture/analyzer.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class Analyzer
+      def initialize: (untyped document, untyped dissector) -> untyped
+
+      def run: () -> untyped
+    end
+  end
+end

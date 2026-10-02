@@ -7,7 +7,13 @@ require_relative "errors"
 module Vanken
   module Core
     module DisplayFilter
-      Token = Data.define(:type, :value, :position, :length, :raw)
+      Token = Data.define(
+        :type, #: Symbol
+        :value, #: untyped
+        :position, #: Integer
+        :length, #: Integer
+        :raw #: String
+      )
 
       class Lexer
         OPERATORS = {
@@ -20,12 +26,15 @@ module Vanken
         PUNCTUATION = {"(" => :lparen, ")" => :rparen, "{" => :lbrace, "}" => :rbrace,
                        "," => :comma, ".." => :range}.freeze
 
+        # @rbs (String expression) -> void
         def initialize(expression)
+          raise SyntaxError.new("Filter exceeds 8192 bytes", position: 8192) if expression.bytesize > 8192
           @scanner = StringScanner.new(expression)
         end
 
+        # @rbs () -> Array[Token]
         def tokens
-          result = []
+          result = [] #: Array[Token]
           until @scanner.eos?
             next if @scanner.scan(/\s+/)
 
@@ -47,6 +56,7 @@ module Vanken
 
         private
 
+        # @rbs (Integer position) -> String
         def read_string(position)
           @scanner.getch
           value = +"".b
@@ -74,6 +84,7 @@ module Vanken
           fail_at("Unterminated string", position, @scanner.pos - position)
         end
 
+        # @rbs (String raw, Integer position) -> [Symbol, untyped]
         def classify(raw, position)
           return [:operator, OPERATORS.fetch(raw)] if OPERATORS.key?(raw)
           return [PUNCTUATION.fetch(raw), raw] if PUNCTUATION.key?(raw)
@@ -103,6 +114,7 @@ module Vanken
           fail_at("Invalid token #{raw.inspect}", position, raw.bytesize)
         end
 
+        # @rbs (String message, Integer position, Integer length) -> bot
         def fail_at(message, position, length)
           raise SyntaxError.new(message, position: position, length: length)
         end

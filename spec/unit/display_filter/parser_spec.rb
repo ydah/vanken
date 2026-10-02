@@ -3,6 +3,13 @@
 RSpec.describe "display-filter parser" do
   before { require "vanken/core/display_filter/compiler" }
 
+  it "rejects excessive size, token count, and nesting without exhausting a worker stack" do
+    [("!" * 1000) + "tcp", ("(" * 1000) + "tcp" + (")" * 1000), ["tcp"] * 600 * " or ", " " * 9000].each do |expression|
+      expect { Vanken::Core::DisplayFilter.compile(expression) }.to raise_error(Vanken::Core::DisplayFilter::SyntaxError)
+    end
+    expect(Vanken::Core::DisplayFilter.compile(("(" * 32) + "tcp" + (")" * 32)).fast?).to be(true)
+  end
+
   valid = ["", "tcp", "not tcp", "!tcp", "(tcp)", "tcp and udp", "tcp or udp",
            "tcp && !udp", "not (tcp or udp)", "tcp.port in {80 443}", "tcp.port in {80,443}",
            "tcp.port in {1..1024 8080}", "tcp.flags & 0x12", 'http.host contains "example"',

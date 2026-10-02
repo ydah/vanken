@@ -1,0 +1,51 @@
+# Generated from lib/vanken/capture/filter_worker.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class FilterWorker
+      class Reader
+        attr_reader count: untyped
+
+        def initialize: (untyped directory, untyped annotations_json) -> untyped
+
+        def metadata: (untyped number) -> untyped
+
+        def frame: (untyped number) -> untyped
+
+        def annotation: (untyped number) -> untyped
+
+        def packet_snapshot: (untyped number) -> untyped
+
+        def close: () -> untyped
+
+        private
+
+        def open_file: (untyped path) -> untyped
+
+        def read_exact: (untyped io, untyped length, untyped offset) -> untyped
+      end
+
+      class View
+        def initialize: (untyped reader, untyped number, untyped dissector, untyped context) -> untyped
+
+        def layer?: (untyped name) -> untyped
+
+        def field_type: (untyped name) -> untyped
+
+        def values: (untyped name) -> untyped
+
+        private
+
+        def packet: () -> untyped
+
+        def annotation: () -> untyped
+
+        def delta: (untyped previous) -> untyped
+      end
+
+      def self.call: (untyped payload) -> untyped
+
+      def self.validate: (untyped payload) -> untyped
+    end
+  end
+end

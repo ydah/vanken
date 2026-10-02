@@ -19,7 +19,7 @@ module Vanken
         end
 
         def wait(timeout: nil)
-          deadline = timeout && monotonic + timeout
+          deadline = timeout && (monotonic + timeout)
           loop do
             @reap_lock.synchronize do
               return @status if @reaped
@@ -133,11 +133,9 @@ module Vanken
         env = @env.to_h.slice(*SAFE_ENV).merge("PATH" => "/usr/bin:/bin:/usr/sbin:/sbin").merge(extra_env)
         pid = Process.spawn(env, [command.first, command.first], *command.drop(1),
                             in: input_read, out: output_write, err: error_write, unsetenv_others: true, close_others: true, pgroup: true)
-        Handle.new(pid, input_write, output_read, error_read)
-      rescue Exception
-        [input_write, output_read, error_read].compact.each { |io| io.close unless io.closed? }
-        raise
+        handle = Handle.new(pid, input_write, output_read, error_read)
       ensure
+        [input_write, output_read, error_read].compact.each { |io| io.close unless io.closed? } unless handle
         [input_read, output_write, error_write].compact.each { |io| io.close unless io.closed? }
       end
 

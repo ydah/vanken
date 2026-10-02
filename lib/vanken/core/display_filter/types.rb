@@ -11,22 +11,24 @@ module Vanken
         SEVERITIES = {"note" => 0, "warning" => 1, "warn" => 1, "error" => 2}.freeze
         module_function
 
+        # @rbs (Predicate predicate, field_type? type) -> ^(untyped, field_type?) -> bool
         def predicate(predicate, type)
           operator = predicate.operator
           validate_operator(operator, type, predicate.token)
-          regex = regular_expression(predicate.members.first.first) if operator == :matches
-          members = prepare_members(predicate.members, type) if type
+          regex = regular_expression(predicate.values.first.first) if operator == :matches
+          members = prepare_members(predicate.values, type) if type
           lambda do |actual, runtime_type|
-            value_type = type || runtime_type || infer_type(actual, predicate.members.first.first)
+            value_type = type || runtime_type || infer_type(actual, predicate.values.first.first)
             validate_operator(operator, value_type, predicate.token) unless type
-            prepared = members || prepare_members(predicate.members, value_type)
+            prepared = members || prepare_members(predicate.values, value_type)
             value = actual_value(actual, value_type)
             compare(value, operator, prepared, regex, value_type)
-          rescue ArgumentError, TypeError, IPAddr::Error, Regexp::TimeoutError, SyntaxError
+          rescue ArgumentError, TypeError, Regexp::TimeoutError, SyntaxError
             false
           end
         end
 
+        # @rbs (Symbol operator, field_type? type, Token token) -> void
         def validate_operator(operator, type, token)
           return unless type
 
@@ -40,6 +42,7 @@ module Vanken
           fail_at("#{operator} is not supported for #{type}", token) unless allowed
         end
 
+        # @rbs (Array[Member] members, field_type? type) -> Array[prepared_member]
         def prepare_members(members, type)
           members.map do |member|
             first = literal(member.first, type)
@@ -51,6 +54,7 @@ module Vanken
           end
         end
 
+        # @rbs (Token token, field_type? type) -> untyped
         def literal(token, type)
           case type
           when :integer, :float
@@ -80,10 +84,11 @@ module Vanken
           else
             token.type == :address ? IPAddr.new(token.value) : token.value
           end
-        rescue ArgumentError, IPAddr::Error
+        rescue ArgumentError
           fail_at("Invalid #{type} value", token)
         end
 
+        # @rbs (untyped value, field_type? type) -> untyped
         def actual_value(value, type)
           case type
           when :address then value.is_a?(IPAddr) ? value : IPAddr.new(value.to_s)
@@ -103,6 +108,7 @@ module Vanken
           end
         end
 
+        # @rbs (untyped actual, Token token) -> field_type
         def infer_type(actual, token)
           return :boolean if actual == true || actual == false
           return :integer if actual.is_a?(Integer)
@@ -114,6 +120,7 @@ module Vanken
           :string
         end
 
+        # @rbs (untyped value, Symbol operator, Array[prepared_member] members, Regexp? regex, field_type? type) -> bool
         def compare(value, operator, members, regex, type)
           expected = members.first.first
           case operator
@@ -125,7 +132,7 @@ module Vanken
           when :ge then value >= expected
           when :le then value <= expected
           when :contains then value.include?(expected)
-          when :matches then regex.match?(value)
+          when :matches then !!regex&.match?(value)
           when :bitmask then (value & expected) != 0
           when :in
             members.any? do |first, last|
@@ -137,9 +144,11 @@ module Vanken
                 value == first
               end
             end
+          else raise ArgumentError, "Unknown filter operator: #{operator}"
           end
         end
 
+        # @rbs (untyped value) -> String
         def normalized_mac(value)
           string = value.to_s
           valid = /\A(?:[\da-f]{2}:){5}[\da-f]{2}\z/i.match?(string) ||
@@ -150,12 +159,14 @@ module Vanken
           string.delete(".:-").downcase
         end
 
+        # @rbs (Token token) -> Regexp
         def regular_expression(token)
           Regexp.new(token.value, timeout: 0.1)
         rescue RegexpError
           fail_at("Invalid regular expression", token)
         end
 
+        # @rbs (String message, Token token) -> bot
         def fail_at(message, token)
           raise SyntaxError.new(message, position: token.position, length: token.length)
         end

@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "tmpdir"
+require "io/wait"
 require "vanken/capture/launcher"
 
 RSpec.describe Vanken::Capture::Launcher do
@@ -42,7 +43,7 @@ RSpec.describe Vanken::Capture::Launcher do
     child = Integer(handle.stdout.gets)
     expect(Process.getpgid(child)).to eq(handle.pid)
     expect(handle.stop(timeout: 0.05).termsig).to eq(Signal.list.fetch("KILL"))
-    expect(IO.select([handle.stdout], nil, nil, 1)).not_to be_nil
+    expect(handle.stdout.wait_readable(1)).not_to be_nil
     expect(handle.stdout.read_nonblock(1, exception: false)).to be_nil
   ensure
     handle&.stop(timeout: 0.05)

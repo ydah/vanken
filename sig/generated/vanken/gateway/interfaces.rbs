@@ -1,0 +1,16 @@
+# Generated from lib/vanken/gateway/interfaces.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    module Interfaces
+      class NotFound < StandardError
+      end
+
+      # @rbs () -> Array[Hash[Symbol, untyped]]
+      def self.list: () -> Array[Hash[Symbol, untyped]]
+
+      # @rbs (String name) -> Hash[Symbol, untyped]
+      def self.find: (String name) -> Hash[Symbol, untyped]
+    end
+  end
+end

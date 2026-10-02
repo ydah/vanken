@@ -8,8 +8,12 @@ module Vanken
   module Core
     module DisplayFilter
       class Program
-        attr_reader :expression, :fields, :sources, :warnings
+        attr_reader :expression #: String
+        attr_reader :fields #: Array[String]
+        attr_reader :sources #: Array[Symbol]
+        attr_reader :warnings #: Array[String]
 
+        # @rbs (expression: String, fields: Array[String], sources: Array[Symbol], warnings: Array[String], evaluator: ^(untyped) -> bool) -> void
         def initialize(expression:, fields:, sources:, warnings:, evaluator:)
           @expression = expression.freeze
           @fields = fields.uniq.freeze
@@ -19,22 +23,26 @@ module Vanken
           freeze
         end
 
+        # @rbs (_FilterView view) -> bool
         def match?(view) = !!@evaluator.call(view)
+        # @rbs () -> bool
         def fast? = !sources.include?(:dissect)
       end
 
       class Compiler
+        # @rbs (?catalog: untyped) -> void
         def initialize(catalog: nil)
           @resolver = FieldResolver.new(catalog)
-          @fields = []
-          @sources = []
-          @warnings = []
+          @fields = [] #: Array[String]
+          @sources = [] #: Array[Symbol]
+          @warnings = [] #: Array[String]
         end
 
+        # @rbs (String expression) -> Program
         def compile(expression)
-          @fields = []
-          @sources = []
-          @warnings = []
+          @fields = [] #: Array[String]
+          @sources = [] #: Array[Symbol]
+          @warnings = [] #: Array[String]
           parser = Parser.new(expression)
           ast = parser.parse
           evaluator = compile_node(ast)
@@ -44,6 +52,7 @@ module Vanken
 
         private
 
+        # @rbs (Node node) -> ^(untyped) -> bool
         def compile_node(node)
           case node.kind
           when :true then ->(_) { true }
@@ -56,9 +65,11 @@ module Vanken
             node.kind == :and ? ->(view) { left.call(view) && right.call(view) } :
                                 ->(view) { left.call(view) || right.call(view) }
           when :test then compile_test(node)
+          else raise ArgumentError, "Unknown filter node: #{node.kind}"
           end
         end
 
+        # @rbs (Node node) -> ^(untyped) -> bool
         def compile_test(node)
           reference = @resolver.resolve(node.left.value)
           @fields << reference.name
@@ -72,7 +83,7 @@ module Vanken
 
           operator = node.right.operator
           predicate = %i[ne any_ne].include?(operator) ?
-            Predicate.new(:eq, node.right.members, node.right.token) : node.right
+            Predicate.new(:eq, node.right.values, node.right.token) : node.right
           comparison = Types.predicate(predicate, reference.type)
           lambda do |view|
             values = Array(view.values(reference.name)).compact
@@ -88,6 +99,7 @@ module Vanken
         end
       end
 
+      # @rbs (String expression, ?catalog: untyped) -> Program
       def self.compile(expression, catalog: nil)
         Compiler.new(catalog: catalog).compile(expression)
       end

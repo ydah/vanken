@@ -65,7 +65,7 @@ RSpec.describe Vanken::App::CaptureController do
   it "reports helper startup errors with their code and reaps the process" do
     Dir.mktmpdir do |directory|
       controller = described_class.new(launcher: fake_launcher(directory, startup_error: true))
-      allow(controller).to receive(:consume_control).and_wrap_original { |original, *args| sleep 0.05; original.call(*args) }
+      allow(controller).to(receive(:consume_control).and_wrap_original { |original, *args| sleep 0.05; original.call(*args) })
       controller.start(interface: "test0")
       expect(controller.wait(3)).to eq(controller)
       expect(controller.state).to eq(:failed)

@@ -1,0 +1,48 @@
+# Generated from lib/vanken/gateway/packet_snapshot.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    module FieldValues
+      ALIASES: untyped
+
+      TCP_FLAGS: untyped
+
+      # @rbs (String name) { (String) -> Array[untyped] } -> Array[untyped]
+      def self.read: (String name) { (String) -> Array[untyped] } -> Array[untyped]
+    end
+
+    # A field-only copy of stateful dissection, with an explicit binary JSON representation.
+    class PacketSnapshot
+      attr_reader columns: Core::column_values
+
+      attr_reader annotations: Core::annotation_values
+
+      # @rbs (fields: Hash[String, Array[untyped]], types: Hash[String, Symbol], layers: Array[String], columns: Core::column_values, annotations: Core::annotation_values) -> void
+      def initialize: (fields: Hash[String, Array[untyped]], types: Hash[String, Symbol], layers: Array[String], columns: Core::column_values, annotations: Core::annotation_values) -> void
+
+      # @rbs (PacketView packet) -> PacketSnapshot
+      def self.from_packet: (PacketView packet) -> PacketSnapshot
+
+      # @rbs (Hash[String, untyped] value) -> PacketSnapshot
+      def self.from_h: (Hash[String, untyped] value) -> PacketSnapshot
+
+      # @rbs () -> Hash[String, untyped]
+      def to_h: () -> Hash[String, untyped]
+
+      # @rbs (String name) -> Array[untyped]
+      def values: (String name) -> Array[untyped]
+
+      # @rbs (String name) -> Symbol?
+      def field_type: (String name) -> Symbol?
+
+      # @rbs (String name) -> bool
+      def layer?: (String name) -> bool
+
+      # @rbs (untyped value) -> untyped
+      def self.encode: (untyped value) -> untyped
+
+      # @rbs (untyped value) -> untyped
+      def self.decode: (untyped value) -> untyped
+    end
+  end
+end

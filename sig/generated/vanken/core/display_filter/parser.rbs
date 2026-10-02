@@ -1,0 +1,95 @@
+# Generated from lib/vanken/core/display_filter/parser.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module DisplayFilter
+      class Node < Data
+        attr_reader kind(): Symbol
+
+        attr_reader left(): untyped
+
+        attr_reader right(): untyped
+
+        def self.new: (Symbol kind, untyped left, untyped right) -> instance
+                    | (kind: Symbol, left: untyped, right: untyped) -> instance
+
+        def self.members: () -> [ :kind, :left, :right ]
+
+        def members: () -> [ :kind, :left, :right ]
+      end
+
+      class Predicate < Data
+        attr_reader operator(): Symbol
+
+        attr_reader values(): Array[Member]
+
+        attr_reader token(): Token
+
+        def self.new: (Symbol operator, Array[Member] values, Token token) -> instance
+                    | (operator: Symbol, values: Array[Member], token: Token) -> instance
+
+        def self.members: () -> [ :operator, :values, :token ]
+
+        def members: () -> [ :operator, :values, :token ]
+      end
+
+      class Member < Data
+        attr_reader first(): Token
+
+        attr_reader last(): Token?
+
+        def self.new: (Token first, Token? last) -> instance
+                    | (first: Token, last: Token?) -> instance
+
+        def self.members: () -> [ :first, :last ]
+
+        def members: () -> [ :first, :last ]
+      end
+
+      class Parser
+        PRECEDENCE: untyped
+
+        VALUES: untyped
+
+        RELATIONS: untyped
+
+        attr_reader warnings: Array[String]
+
+        # @rbs (String expression) -> void
+        def initialize: (String expression) -> void
+
+        # @rbs () -> Node
+        def parse: () -> Node
+
+        private
+
+        # @rbs (Integer minimum) -> Node
+        def expression: (Integer minimum) -> Node
+
+        # @rbs () -> Node
+        def primary: () -> Node
+
+        # @rbs () -> Predicate?
+        def predicate: () -> Predicate?
+
+        # @rbs () -> Array[Member]
+        def set_members: () -> Array[Member]
+
+        # @rbs () -> Token
+        def value: () -> Token
+
+        # @rbs (Symbol type) -> Token
+        def expect_token: (Symbol type) -> Token
+
+        # @rbs () -> Token
+        def current: () -> Token
+
+        # @rbs () -> Token
+        def advance: () -> Token
+
+        # @rbs (String message, Token token) -> bot
+        def fail_at: (String message, Token token) -> bot
+      end
+    end
+  end
+end

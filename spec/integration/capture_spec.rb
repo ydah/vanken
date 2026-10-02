@@ -3,6 +3,7 @@
 require "spec_helper"
 require "open3"
 require "stringio"
+require "io/wait"
 require "vanken/capture/launcher"
 require "vanken/capture/control_protocol"
 require "vanken/gateway/file_reader"
@@ -19,7 +20,7 @@ RSpec.describe "privileged live capture" do
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
     until controls.last&.fetch("type") == "started"
       remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      raise "capture helper did not start: #{controls.inspect}" unless remaining.positive? && IO.select([handle.stderr], nil, nil, remaining)
+      raise "capture helper did not start: #{controls.inspect}" unless remaining.positive? && handle.stderr.wait_readable(remaining)
       line = handle.stderr.gets
       raise "capture helper exited before starting: #{controls.inspect}" unless line
       event = Vanken::Capture::ControlProtocol.parse(line)
@@ -39,7 +40,12 @@ RSpec.describe "privileged live capture" do
     expect(controls.last.fetch("stats").fetch("captured")).to be >= 3
     reader = Vanken::Gateway::FileReader.new(StringIO.new(handle.stdout.read))
     frames = []
-    frames << frame while (frame = reader.next_frame)
+    loop do
+      captured_frame = reader.next_frame
+      break unless captured_frame
+
+      frames << captured_frame
+    end
     expect(frames.length).to be >= 3
     expect(frames).to all(have_attributes(linktype: 1))
     expect { Process.waitpid(handle.pid, Process::WNOHANG) }.to raise_error(Errno::ECHILD)

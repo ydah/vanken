@@ -1,0 +1,87 @@
+# Generated from lib/vanken/core/stores.rb with RBS::Inline
+
+module Vanken
+  module Core
+    class InternTable
+      # @rbs! @values: Array[String]
+      # @rbs! @ids: Hash[String, Integer]
+      # @rbs () -> void
+      def initialize: () -> void
+
+      # @rbs (String value) -> Integer
+      def intern: (String value) -> Integer
+
+      # @rbs (Integer id) -> String
+      def []: (Integer id) -> String
+    end
+
+    class ColumnStore
+      FORMAT: ::String
+
+      SIZE: ::Integer
+
+      attr_reader strings: InternTable
+
+      # @rbs! @protocol_ids: Hash[String, Integer]
+      # @rbs! @protocol_names: Array[String]
+      # @rbs! @transport_values: Hash[Integer, Hash[String, Array[Integer]]]
+      # @rbs () -> void
+      def initialize: () -> void
+
+      # @rbs (column_values values) -> void
+      def append: (column_values values) -> void
+
+      # @rbs (Integer number) -> column_values
+      def []: (Integer number) -> column_values
+
+      # @rbs (Integer number, String name) -> bool?
+      def layer?: (Integer number, String name) -> bool?
+
+      # @rbs (Integer number, String name) -> Array[Integer]
+      def port_values: (Integer number, String name) -> Array[Integer]
+    end
+
+    class AnnotationStore
+      FLAGS: untyped
+
+      FORMAT: ::String
+
+      SIZE: ::Integer
+
+      attr_reader streams: Hash[Integer, Array[Integer]]
+
+      attr_reader experts: Hash[Integer, Array[Hash[Symbol, untyped]]]
+
+      # @rbs! @extra: Hash[Integer, Hash[String, untyped]]
+      # @rbs (String directory) -> void
+      def initialize: (String directory) -> void
+
+      # @rbs (Integer number, annotation_values annotation) -> void
+      def append: (Integer number, annotation_values annotation) -> void
+
+      # @rbs (Integer number) -> annotation_values
+      def []: (Integer number) -> annotation_values
+
+      # @rbs () -> void
+      def flush: () -> void
+
+      # @rbs (String path) -> String
+      def snapshot: (String path) -> String
+
+      # @rbs () -> void
+      def close: () -> void
+    end
+
+    class RowCache
+      # @rbs! @entries: Hash[untyped, untyped]
+      # @rbs (?limit: Integer) -> void
+      def initialize: (?limit: Integer) -> void
+
+      # @rbs [T] (untyped key) { () -> T } -> T
+      def fetch: [T] (untyped key) { () -> T } -> T
+
+      # @rbs () -> void
+      def clear: () -> void
+    end
+  end
+end

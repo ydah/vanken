@@ -7,20 +7,24 @@ require_relative "../core/frame_view"
 require_relative "../core/display_filter/compiler"
 require_relative "../capture/receiver"
 require_relative "../capture/analyzer"
+require_relative "document_jobs"
 
 module Vanken
   module App
     class Document
+      include DocumentJobs
       attr_reader :store, :columns, :annotations, :error, :path, :source, :progress, :filter,
-                  :marked, :ignored, :time_references, :catalog
-      attr_accessor :frame_latency
+                  :marked, :ignored, :time_references, :catalog, :analysis_options
+      attr_accessor :frame_latency, :scanner
 
-      def initialize(on_update: nil, preferences: nil, store: nil)
+      def initialize(on_update: nil, preferences: nil, store: nil, scanner: nil)
         @store = store || Core::FrameStore.new
         @columns = Core::ColumnStore.new
         @annotations = Core::AnnotationStore.new(@store.directory)
         @cache = Core::RowCache.new(limit: preferences&.get("packet_list.row_cache_rows") || 20_000)
         @dissector = Gateway::Dissector.new(verify_checksums: preferences&.get("analysis.verify_checksums") || false)
+        @analysis_options = {max_state_bytes: (preferences&.get("analysis.max_state_mib") || 256) << 20,
+                             max_flows: preferences&.get("analysis.max_flows") || 100_000}.freeze
         @catalog = Gateway::FieldCatalog.new
         @mutex, @condition = Mutex.new, ConditionVariable.new
         @jobs, @count, @generation = [], 0, 0
@@ -28,7 +32,11 @@ module Vanken
         @marked, @ignored, @time_references = Set.new, Set.new, Set.new
         @received, @analyzed, @cancelled, @dirty = false, false, false, false
         @on_update, @last_notify = on_update, 0.0
+        @scanner = scanner
+        @scan_concurrency = preferences&.get("analysis.workers") || 4
+        @filter_tasks = []
         @details = File.open(File.join(@store.directory, "details.jsonl"), "w+b", 0o600)
+        @detail_index = File.open(File.join(@store.directory, "reassembled.idx"), "w+b", 0o600)
         @detail_offsets = {}
         @frame_latency = 0.0
       end
@@ -58,35 +66,60 @@ module Vanken
       def cancelled? = @cancelled
       def received? = @received
       def complete? = @analyzed
+      def closing? = !!@closing
       def stream_frames(stream) = @mutex.synchronize { @annotations.streams[stream].dup }
       def packet(number) = @dissector.dissect(@store.read(number))
-      def view(number, packet: nil) = Core::FrameView.new(self, number, packet: packet)
+      # @rbs (Integer number) -> Gateway::PacketSnapshot?
+      def packet_snapshot(number)
+        saved = persisted_details(number)
+        saved && Gateway::PacketSnapshot.from_h(saved.fetch("packet"))
+      end
+      def view(number, packet: nil, snapshot: nil) = Core::FrameView.new(self, number, packet: packet, snapshot: snapshot)
       def row(number)
         base = @mutex.synchronize { @columns[number] }
         frame = @store.metadata(number)
-        info = @cache.fetch(number) { packet(number).info }
+        info = @cache.fetch(number) { persisted_details(number)&.fetch("info", nil) || packet(number).info }
         base.merge(no: number, number: number, timestamp_ns: frame[:timestamp_ns], length: frame[:original_length], info: info)
       end
       def details(number)
-        offset = @mutex.synchronize { @detail_offsets[number] }
-        return Gateway::DetailBuilder.new.build(packet(number), annotations: @annotations[number]) unless offset
-        @mutex.synchronize do
-          @details.seek(offset)
-          restore_nodes(JSON.parse(@details.gets, symbolize_names: true))
-        end
+        saved = persisted_details(number)
+        return restore_nodes(saved.fetch("nodes")) if saved
+
+        Gateway::DetailBuilder.new.build(packet(number), annotations: @annotations[number])
       end
       def publish(number, packet)
-        @mutex.synchronize do
-          @columns.append(packet.columns)
-          @annotations.append(number, packet.annotations)
-          if packet.reassembled?
-            tree = Gateway::DetailBuilder.new.build(packet)
-            @detail_offsets[number] = @details.pos
-            @details.write(JSON.generate(tree.map(&:to_h)) + "\n")
-            @details.flush
+        committing = false
+        begin
+          columns, annotation = packet.columns, packet.annotations
+          @catalog.observe(packet)
+          saved = JSON.generate("nodes" => Gateway::DetailBuilder.new.build(packet).map(&:to_h), "info" => packet.info,
+            "packet" => Gateway::PacketSnapshot.from_packet(packet).to_h) + "\n" if packet.reassembled?
+          loop do
+            program, generation, snapshot = @mutex.synchronize { [@filter, @generation, @filter_context] }
+            matched = !program || program.match?(view(number, packet: packet, snapshot: snapshot))
+            committed = @mutex.synchronize do
+              next false if generation != @generation
+              committing = true
+              @columns.append(columns)
+              @annotations.append(number, annotation)
+              if saved
+                @detail_offsets[number] = @details.pos
+                @details.write(saved)
+                @details.flush
+                @detail_index.write([number, @detail_offsets[number]].pack("Q<Q<"))
+                @detail_index.flush
+              end
+              @count = number
+              @dirty = true if @source == :live
+              @display << number if @display && matched
+              true
+            end
+            break if committed
           end
-          @count = number
-          @display << number if @display && (!@filter || @filter.match?(view(number, packet: packet)))
+        rescue StandardError => error
+          # Storage errors must abort, rather than appending another record.
+          raise if committing
+          return publish_failure(number, error)
         end
         notify
       end
@@ -106,81 +139,7 @@ module Vanken
       def wait_for_frames = @mutex.synchronize { @condition.wait(@mutex, 0.05) }
       def fail(error) = (@error = error; notify(force: true))
 
-      def apply_filter(expression)
-        program = Core::DisplayFilter.compile(expression, catalog: @catalog)
-        @generation += 1
-        generation = @generation
-        @jobs << thread do
-          limit = count
-          result = []
-          (1..limit).each do |number|
-            break if @cancelled || generation != @generation
-            result << number if program.match?(view(number))
-            if number % 10_000 == 0
-              @progress = number.fdiv([limit, 1].max)
-              notify
-              Thread.pass
-            end
-          end
-          next if @cancelled || generation != @generation
-          @mutex.synchronize do
-            ((limit + 1)..@count).each { |number| result << number if program.match?(view(number)) }
-            @filter = expression.empty? ? nil : program
-            @display = expression.empty? ? nil : result
-          end
-          @progress = nil
-          notify(force: true)
-        end
-        self
-      end
-
-      def sort(key, direction = :asc)
-        raise ArgumentError, "invalid sort direction" unless %i[asc desc].include?(direction)
-        @jobs << thread do
-          numbers = display_numbers
-          values = numbers.to_h do |number|
-            value = case key.to_sym
-            when :no, :number then number
-            when :time then @store.metadata(number)[:timestamp_ns]
-            when :length then @store.metadata(number)[:original_length]
-            else row(number).fetch(key.to_sym)
-            end
-            [number, value]
-          end
-          numbers.sort! { |a, b| comparison = values[a] <=> values[b]; comparison = -comparison if direction == :desc; comparison.zero? ? a <=> b : comparison }
-          @mutex.synchronize { @display = numbers + (@display ? @display - numbers : ((1..@count).to_a - numbers)) }
-          notify(force: true)
-        end
-        self
-      end
-
-      def save(path, format: nil, numbers: nil)
-        @error = nil
-        format ||= File.extname(path) == ".pcap" ? :pcap : :pcapng
-        limit = count
-        @jobs << thread do
-          temporary = Tempfile.create([".vanken-", ".tmp"], File.dirname(File.expand_path(path)))
-          begin
-            linktype = limit.zero? ? 1 : @store.metadata(1)[:linktype]
-            Gateway::FileWriter.open(temporary, format: format, linktype: linktype) do |writer|
-              (numbers || (1..limit)).each { |number| writer << @store.read(number) }
-            end
-            temporary.flush
-            temporary.fsync
-            temporary.close
-            File.rename(temporary.path, File.expand_path(path))
-            @dirty = false unless numbers
-            @path = File.expand_path(path) unless numbers
-            notify(force: true)
-          ensure
-            temporary.close unless temporary.closed?
-            File.unlink(temporary.path) if File.exist?(temporary.path)
-          end
-        end
-        self
-      end
-
-      def time_value(number, format = :relative)
+      def time_value(number, format = :relative, references: nil)
         current = @store.metadata(number)[:timestamp_ns]
         base = case format.to_sym
         when :epoch, :absolute then 0
@@ -188,9 +147,10 @@ module Vanken
         when :delta_displayed
           displayed = display_numbers
           index = displayed.index(number)
-          index && index.positive? ? @store.metadata(displayed[index - 1])[:timestamp_ns] : current
+          previous = index && index.positive? ? displayed[index - 1] : (number > count ? displayed.last : nil)
+          previous ? @store.metadata(previous)[:timestamp_ns] : current
         else
-          reference = @time_references.select { |value| value <= number }.max || 1
+          reference = (references || @time_references).select { |value| value <= number }.max || 1
           @store.metadata(reference)[:timestamp_ns]
         end
         (current - base) / 1e9
@@ -198,29 +158,42 @@ module Vanken
 
       def cancel
         @cancelled = true
-        @generation += 1
         @reader.stop if @reader.respond_to?(:stop)
         signal
         self
       end
       def wait(timeout = nil)
-        deadline = timeout && Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+        deadline = timeout && (Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout)
         @jobs.each do |job|
-          remaining = deadline && deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          remaining = deadline && (deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC))
           raise Vanken::Error, "background operation did not stop" if remaining && remaining <= 0 && job.alive?
           raise Vanken::Error, "background operation did not stop" unless job.join(remaining && [remaining, 0].max)
         end
         self
       end
       def close
+        return self if @closed
+        @closing = true
         cancel
+        cancel_scan
         wait(3)
         @annotations.close
         @details.close
+        @detail_index.close
         @store.close
+        @closed = true
+        self
       end
 
       private
+      def persisted_details(number)
+        @mutex.synchronize do
+          offset = @detail_offsets[number]
+          next nil unless offset
+          @details.seek(offset)
+          JSON.parse(@details.gets)
+        end
+      end
       def thread(&block)
         Thread.new do
           Thread.current.report_on_exception = false
@@ -236,7 +209,10 @@ module Vanken
         @on_update&.call(self)
       end
       def restore_nodes(nodes)
-        nodes.map { |node| Core::DetailNode.new(**node.merge(source: node[:source].to_sym, severity: node[:severity]&.to_sym, children: restore_nodes(node[:children]))) }
+        nodes.map do |value|
+          node = value.transform_keys(&:to_sym)
+          Core::DetailNode.new(**node.merge(source: node[:source].to_sym, severity: node[:severity]&.to_sym, children: restore_nodes(node[:children])))
+        end
       end
     end
   end

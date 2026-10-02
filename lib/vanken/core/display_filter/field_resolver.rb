@@ -1,9 +1,17 @@
 # frozen_string_literal: true
 
+require_relative "../stores"
+
 module Vanken
   module Core
     module DisplayFilter
-      Reference = Data.define(:name, :type, :source, :protocol, :known)
+      Reference = Data.define(
+        :name, #: String
+        :type, #: field_type?
+        :source, #: Symbol
+        :protocol, #: bool
+        :known #: bool
+      )
 
       class FieldResolver
         PROTOCOLS = %w[eth vlan arp ip ipv6 icmp icmpv6 igmp tcp udp gre vxlan dns dhcp ntp http tls data].freeze
@@ -20,14 +28,18 @@ module Vanken
           **%w[syn ack fin rst psh urg].to_h { |flag| ["tcp.flags.#{flag}", :boolean] }
         }.freeze
 
+        # @rbs (?untyped catalog) -> void
         def initialize(catalog = nil)
           @catalog = catalog
         end
 
+        # @rbs (String name) -> Reference
         def resolve(name)
           entry = @catalog&.lookup(name)
           type = FRAME_FIELDS[name] || VIRTUAL_FIELDS[name] || metadata(entry, :type)
-          type = :boolean if name.start_with?("tcp.analysis.")
+          if name == "tcp.analysis.flags" || Core::AnnotationStore::FLAGS.any? { |flag| name == "tcp.analysis.#{flag}" }
+            type = :boolean
+          end
           protocol = !name.include?(".") && (PROTOCOLS.include?(name) || @catalog&.protocol?(name))
           source = if FRAME_FIELDS.key?(name)
             :frame
@@ -41,6 +53,7 @@ module Vanken
           Reference.new(name, normalize_type(type), source.to_sym, !!protocol, !!(type || entry || protocol))
         end
 
+        # @rbs (untyped type) -> field_type?
         def normalize_type(type)
           return nil unless type
 
@@ -59,6 +72,7 @@ module Vanken
 
         private
 
+        # @rbs (untyped entry, Symbol key) -> untyped
         def metadata(entry, key)
           return nil unless entry
           return entry[key] || entry[key.to_s] if entry.is_a?(Hash)

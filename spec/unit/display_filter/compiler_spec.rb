@@ -201,7 +201,7 @@ RSpec.describe "display-filter compiler" do
   end
 
   it "bounds pathological regular expressions" do
-    view = FilterFixture.new({"http.host" => ["a" * 30_000 + "!"]}, [])
+    view = FilterFixture.new({"http.host" => [("a" * 30_000) + "!"]}, [])
     program = Vanken::Core::DisplayFilter.compile('http.host matches "^(a+)+\\\\1$"', catalog: catalog)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     expect(program.match?(view)).to be(false)

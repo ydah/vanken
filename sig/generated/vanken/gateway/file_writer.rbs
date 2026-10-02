@@ -1,0 +1,27 @@
+# Generated from lib/vanken/gateway/file_writer.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class FileWriter
+      # @rbs (String | IO output, **untyped options) -> FileWriter
+      # @rbs [T] (String | IO output, **untyped options) { (FileWriter) -> T } -> T
+      def self.open: (String | IO output, **untyped options) -> FileWriter
+                   | [T] (String | IO output, **untyped options) { (FileWriter) -> T } -> T
+
+      # @rbs (String | IO output, ?format: Symbol | String, **untyped options) -> void
+      def initialize: (String | IO output, ?format: Symbol | String, **untyped options) -> void
+
+      # @rbs (Core::Frame | Redhound::Packet frame) -> self
+      def <<: (Core::Frame | Redhound::Packet frame) -> self
+
+      # @rbs () -> void
+      def flush: () -> void
+
+      # @rbs (Redhound::Capture::Stats | Hash[Symbol | String, Integer] stats, ?interface: Redhound::Capture::Interface?) -> void
+      def write_stats: (Redhound::Capture::Stats | Hash[Symbol | String, Integer] stats, ?interface: Redhound::Capture::Interface?) -> void
+
+      # @rbs () -> void
+      def close: () -> void
+    end
+  end
+end

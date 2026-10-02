@@ -1,0 +1,17 @@
+# Generated from lib/vanken/capture/control_protocol.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class ControlProtocol
+      TYPES: untyped
+
+      MAX_LINE_BYTES: ::Integer
+
+      def initialize: (untyped io) -> untyped
+
+      def write: (untyped type, **untyped fields) -> untyped
+
+      def self.parse: (untyped line) -> untyped
+    end
+  end
+end

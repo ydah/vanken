@@ -1,0 +1,110 @@
+# Generated from lib/vanken/app/document.rb with RBS::Inline
+
+module Vanken
+  module App
+    class Document
+      include DocumentJobs
+
+      attr_reader store: untyped
+
+      attr_reader columns: untyped
+
+      attr_reader annotations: untyped
+
+      attr_reader error: untyped
+
+      attr_reader path: untyped
+
+      attr_reader source: untyped
+
+      attr_reader progress: untyped
+
+      attr_reader filter: untyped
+
+      attr_reader marked: untyped
+
+      attr_reader ignored: untyped
+
+      attr_reader time_references: untyped
+
+      attr_reader catalog: untyped
+
+      attr_reader analysis_options: untyped
+
+      attr_accessor frame_latency: untyped
+
+      attr_accessor scanner: untyped
+
+      def initialize: (?on_update: untyped, ?preferences: untyped, ?store: untyped, ?scanner: untyped) -> untyped
+
+      def open: (untyped path) -> untyped
+
+      def ingest: (untyped source, ?live: untyped) -> untyped
+
+      def count: () -> untyped
+
+      def displayed_count: () -> untyped
+
+      def number_at: (untyped index) -> untyped
+
+      def display_numbers: () -> untyped
+
+      def dirty?: () -> untyped
+
+      def loading?: () -> untyped
+
+      def cancelled?: () -> untyped
+
+      def received?: () -> untyped
+
+      def complete?: () -> untyped
+
+      def closing?: () -> untyped
+
+      def stream_frames: (untyped stream) -> untyped
+
+      def packet: (untyped number) -> untyped
+
+      # @rbs (Integer number) -> Gateway::PacketSnapshot?
+      def packet_snapshot: (Integer number) -> Gateway::PacketSnapshot?
+
+      def view: (untyped number, ?packet: untyped, ?snapshot: untyped) -> untyped
+
+      def row: (untyped number) -> untyped
+
+      def details: (untyped number) -> untyped
+
+      def publish: (untyped number, untyped packet) -> untyped
+
+      def publish_failure: (untyped number, untyped error) -> untyped
+
+      def receiving_done: () -> untyped
+
+      def analyzing_done: () -> untyped
+
+      def signal: () -> untyped
+
+      def wait_for_frames: () -> untyped
+
+      def fail: (untyped error) -> untyped
+
+      def time_value: (untyped number, ?untyped format, ?references: untyped) -> untyped
+
+      def cancel: () -> untyped
+
+      def wait: (?untyped timeout) -> untyped
+
+      def close: () -> untyped
+
+      private
+
+      def persisted_details: (untyped number) -> untyped
+
+      def thread: () ?{ (?) -> untyped } -> untyped
+
+      def notify: (?force: untyped) -> untyped
+
+      def restore_nodes: (untyped nodes) -> untyped
+    end
+  end
+end

@@ -6,13 +6,15 @@ require "redhound"
 module Vanken
   module Gateway
     class FileReader
-      include Enumerable
+      include Enumerable #[Core::Frame]
+      # @rbs (String | IO input) -> void
       def initialize(input)
         @reader = Redhound.open(input)
         @number = 0
       rescue Redhound::Error, IOError, SystemCallError => error
         raise Vanken::FileError, error.message
       end
+      # @rbs (?timeout: Numeric?) -> Core::Frame?
       def next_frame(timeout: nil)
         packet = @reader.next_packet(timeout: timeout)
         return nil unless packet
@@ -25,6 +27,8 @@ module Vanken
       rescue Redhound::Error, IOError, SystemCallError => error
         raise Vanken::FileError, error.message
       end
+      # @rbs () { (Core::Frame) -> void } -> void
+      # @rbs () -> Enumerator[Core::Frame, void]
       def each
         return enum_for(:each) unless block_given?
         loop do
@@ -33,9 +37,13 @@ module Vanken
           break if eof?
         end
       end
+      # @rbs () -> bool
       def eof? = @reader.stopped?
+      # @rbs () -> void
       def stop = @reader.stop
+      # @rbs () -> void
       def close = @reader.close
+      # @rbs () -> Redhound::Capture::Stats
       def stats = @reader.stats
     end
   end

@@ -7,12 +7,13 @@ module Vanken
     module Interfaces
       class NotFound < StandardError; end
 
+      # @rbs () -> Array[Hash[Symbol, untyped]]
       def self.list
         result = Redhound::Capture.interfaces.map do |interface|
           {name: interface.name, index: interface.index, linktype: interface.linktype,
            snaplen: interface.snaplen, description: interface.description, mac: interface.mac,
            mtu: interface.mtu, up: interface.up?, running: interface.running?, loopback: interface.loopback?}
-        end
+        end #: Array[Hash[Symbol, untyped]]
         if RUBY_PLATFORM.include?("linux")
           result << {name: "any", index: 0, linktype: 276, snaplen: 262_144,
                      description: "All interfaces", mac: nil, mtu: nil, up: true, running: true, loopback: false}
@@ -20,6 +21,7 @@ module Vanken
         result
       end
 
+      # @rbs (String name) -> Hash[Symbol, untyped]
       def self.find(name)
         list.find { |interface| interface[:name] == name } || raise(NotFound, "interface #{name.inspect} not found")
       end

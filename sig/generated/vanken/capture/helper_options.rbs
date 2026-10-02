@@ -1,0 +1,27 @@
+# Generated from lib/vanken/capture/helper_options.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class HelperOptions
+      attr_reader command: untyped
+
+      attr_reader capture: untyped
+
+      attr_reader drop_to: untyped
+
+      attr_reader stats_interval: untyped
+
+      attr_reader flush_interval: untyped
+
+      def self.parse: (untyped argv) -> untyped
+
+      def initialize: () -> untyped
+
+      def parse: (untyped argv) -> untyped
+
+      private
+
+      def bounded: (untyped value, untyped range, untyped name) -> untyped
+    end
+  end
+end

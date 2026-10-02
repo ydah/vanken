@@ -1,0 +1,58 @@
+# Generated from lib/vanken/core/frame_store.rb with RBS::Inline
+
+module Vanken
+  module Core
+    class FrameStore
+      RECORD: ::String
+
+      RECORD_SIZE: ::Integer
+
+      attr_reader directory: String
+
+      @interfaces: Array[Hash[String, untyped]]
+
+      # @rbs (?parent: String?, ?directory: String?, ?recover: bool) -> void
+      def initialize: (?parent: String?, ?directory: String?, ?recover: bool) -> void
+
+      # @rbs (String directory) -> FrameStore
+      def self.recover: (String directory) -> FrameStore
+
+      # @rbs () -> Integer
+      def count: () -> Integer
+
+      # @rbs () -> Integer
+      def durable_count: () -> Integer
+
+      # @rbs (Frame frame) -> Integer
+      def append: (Frame frame) -> Integer
+
+      # @rbs () -> self
+      def flush: () -> self
+
+      # @rbs (Integer number) -> frame_metadata
+      def metadata: (Integer number) -> frame_metadata
+
+      # @rbs (Integer number) -> Frame
+      def read: (Integer number) -> Frame
+
+      # @rbs () -> Array[Hash[String, untyped]]
+      def interfaces: () -> Array[Hash[String, untyped]]
+
+      # @rbs (?remove: bool) -> void
+      def close: (?remove: bool) -> void
+
+      private
+
+      # @rbs (String name, String mode) -> File
+      def private_file: (String name, String mode) -> File
+
+      def validate_directory: () -> untyped
+
+      def persist: (untyped name, untyped value) -> untyped
+
+      def intern_interface: (untyped value) -> untyped
+
+      def restore: () -> untyped
+    end
+  end
+end

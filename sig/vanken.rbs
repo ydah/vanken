@@ -1,4 +1,25 @@
 module Vanken
-  VERSION: String
-  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+  module Core
+    type frame_metadata = {
+      offset: Integer, caplen: Integer, original_length: Integer, timestamp_ns: Integer,
+      linktype: Integer, interface: Hash[String, untyped]?, direction: (:in | :out)?, number: Integer
+    }
+    type column_values = {
+      source: String, destination: String, protocol: String,
+      src_port: Integer, dst_port: Integer, ip_proto: Integer, layers: Array[String],
+      ?transport_values: Hash[String, Array[Integer]]?
+    }
+    type annotation_values = {
+      tcp_stream: Integer, seq_rel: Integer, ack_rel: Integer, analysis_flags: Array[String],
+      expert_max: Integer, expert_items: Array[Hash[Symbol, untyped]], extra: Hash[String, untyped]
+    }
+    interface _FilterView
+      def values: (String) -> Array[untyped]
+      def layer?: (String) -> bool
+    end
+    module DisplayFilter
+      type field_type = :integer | :float | :boolean | :address | :mac | :bytes | :string | :severity
+      type prepared_member = [untyped, untyped]
+    end
+  end
 end
