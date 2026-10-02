@@ -7,6 +7,7 @@ require "pathname"
 require "rdoc"
 require "rdoc/markdown"
 require "rdoc/markup/to_html"
+require "rdoc/markup/to_table_of_contents"
 
 ROOT = File.expand_path("..", __dir__)
 OUTPUT = File.join(ROOT, "tmp/site")
@@ -31,7 +32,8 @@ html_pages = {"index.html" => File.read(File.join(ROOT, "index.html"))}
 pages.each_with_index do |page, index|
   source = File.read(File.join(ROOT, page[:source]), encoding: Encoding::UTF_8).sub(/\A# [^\n]+\n+/, "")
   renderer = RDoc::Markup::ToHtml.new
-  content = renderer.convert(RDoc::Markdown.parse(source))
+  markup = RDoc::Markdown.parse(source)
+  content = renderer.convert(markup)
   content = content.gsub(/(href|src)="([^"]+)"/) do
     attribute, href = Regexp.last_match.captures
     target, fragment = CGI.unescapeHTML(href).split("#", 2)
@@ -50,8 +52,8 @@ pages.each_with_index do |page, index|
     end
     "#{attribute}=\"#{h(target)}#{"##{h(fragment)}" if fragment}\""
   end
-  headings = content.scan(/<h2 id="([^"]+)"[^>]*>(.*?)<\/h2>/m).map do |anchor, title|
-    [anchor, CGI.unescapeHTML(title.gsub(/<[^>]*>/, ""))]
+  headings = markup.table_of_contents.filter_map do |heading|
+    [heading.aref, heading.text] if heading.level == 2
   end
   previous_page = pages[index - 1] if index.positive?
   next_page = pages[index + 1]
