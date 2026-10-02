@@ -22,6 +22,10 @@ RSpec.describe "Custom columns in the packet window" do
   before do
     @directory = Dir.mktmpdir
     @ui = Vanken::UI::Application.new(backend: :headless, preferences: Vanken::Config::Preferences.new(directory: @directory))
+    # Keep the real layout, focus, and scene rendering; assertions do not inspect pixels.
+    allow(@ui.window).to receive(:render).and_wrap_original do |original, element, **options|
+      original.call(element, **options, present: false)
+    end
     @ui.extend(Vanken::UI::ColumnOperations)
     @document = Vanken::App::Document.new(process_analysis: false)
     @document.ingest([frame, frame(tcp_bytes(port: 81), number: 2)]).wait
