@@ -14,7 +14,7 @@ RSpec.describe Vanken::App::CaptureController do
     end
   end
 
-  def fake_launcher(directory, stop_message: true, startup_error: nil, close_control: false, pause_before_header: false)
+  def fake_launcher(directory, stop_message: true, startup_error: nil, close_control: false, pause_before_header: false, empty: false)
     capture = File.join(directory, "input.pcapng")
     write_capture(capture, [frame, frame(tcp_bytes(seq: 101, flags: 24, payload: "tail"), number: 2)])
     helper = File.join(directory, "helper.rb")
@@ -32,13 +32,32 @@ RSpec.describe Vanken::App::CaptureController do
       STDERR.puts "plain log"
       STDERR.puts JSON.generate(v: 2, type: "error", message: "future version")
       sleep 0.001 until File.exist?(#{File.join(directory, "release-header").inspect}) if #{pause_before_header}
-      STDOUT.write File.binread(#{capture.inspect})
-      emit.call("stats", received: 2, dropped: 1, if_dropped: 0, captured: 2)
+      bytes = File.binread(#{capture.inspect})
+      STDOUT.write(#{empty} ? bytes.byteslice(0, bytes.unpack1("V", offset: 4)) : bytes)
+      stats = {received: #{empty ? 0 : 2}, dropped: #{empty ? 0 : 1}, if_dropped: 0, captured: #{empty ? 0 : 2}}
+      emit.call("stats", stats)
       STDERR.reopen(File::NULL, "w") if #{close_control}
       STDIN.read
-      emit.call("stopped", reason: "stdin_closed", stats: {received: 2, dropped: 1, if_dropped: 0, captured: 2}) if #{stop_message}
+      emit.call("stopped", reason: "stdin_closed", stats: stats) if #{stop_message}
     RUBY
     Vanken::Capture::Launcher.new(strategy: :direct, direct_command: [RbConfig.ruby, helper])
+  end
+
+  it "stops a quiet capture before any interface or packet record arrives" do
+    Dir.mktmpdir do |directory|
+      controller = described_class.new(launcher: fake_launcher(directory, empty: true))
+      controller.start(interface: "test0")
+      eventually { controller.capturing? && controller.document }
+      expect(controller.document.count).to eq(0)
+      controller.stop
+      expect(controller.wait(3)).to eq(controller)
+      expect(controller.error).to be_nil
+      expect(controller.state).to eq(:stopped)
+      expect(controller.document.complete?).to be(true)
+      expect(controller.document.count).to eq(0)
+    ensure
+      controller&.close
+    end
   end
 
   it "attaches the capture document before the first packet header arrives" do
