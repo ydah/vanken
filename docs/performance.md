@@ -121,3 +121,46 @@ On 2026-10-02, Ruby 4.0.6 with YJIT on arm64 Darwin compared the same 20,000 com
 A separate one-million-packet run of the production document measured 0.5529 s for the existing fast filter, 6.2598 s for the four-worker `ip.ttl == 64` scan, and 2.7721 s for the four-worker address/port cBPF scan. Each matched all one million packets. Analysis took 115.6605 s (8,646 packets/s), with 67.2 B/frame retained parent heap before filtering and 81.08 B/frame after the worker scan. This run overlapped integration and UI tests and is not an isolated comparison with the earlier analysis-throughput result. RSS sampling was unavailable and is recorded as null; these heap figures do not establish the RSS target.
 
 The I/O graph check seeds actual frame metadata, packed columns, and annotations for 200,000 TCP frames, then times two series at each supported interval. It excludes packet parsing. The observed interval rebuilds took 0.30–0.33 s, each below the one-second target, with every packet counted in both series. Run `bundle exec ruby --yjit script/analysis-performance.rb` to repeat it. Nightly validation retains the one-million-packet benchmark, evaluator comparison, graph timings, and fuzz results as workflow artifacts.
+
+## Release 0.2 and 0.3 verification with public Zaniah 0.12.4
+
+The [final nightly run](https://github.com/ydah/vanken/actions/runs/36999466662) tested commit `6d05e2a` with Ruby 3.4.10, YJIT, public redhound 2.0.0.rc2, and public Zaniah 0.12.4 on the shared x86_64 Linux runner. The receiver, complete one-million-packet analysis, all filters, graph accounting, and 5,000 deterministic fuzz cases passed their functional checks. Commit `2169b6a` adds the administrator installer and packaging without changing this analysis or rendering code.
+
+| Measurement | Result | Target |
+| --- | ---: | ---: |
+| Receiver, 1,000,000 frames | 181,777 frames/s | ≥ 100,000 |
+| Ingest and analyze, 1,000,000 frames | 4,073 frames/s; 245.5186 s | ≥ 15,000; missed |
+| Parent / combined / after-filter RSS increment | 80.26 / 87.48 / 91.06 B per frame | ≤ 200 |
+| Fast / four-worker slow filter | 1.9499 / 22.9614 s | ≤ 3 / 60 s |
+| Four-worker address/port cBPF filter | 7.1322 s; 1,000,000 matches | Reported separately |
+| Static full application, total / scene render p95 | 73.154 / 71.903 ms | Scene ≤ 33 ms; missed |
+| Growing full application, total / scene render p95 | 44.370 / 42.490 ms | Scene ≤ 33 ms; missed |
+
+The growing full-application source produced only 427.6 frames/s during sampling, so that measurement does not establish responsiveness at 5,000 frames/s. The isolated virtual-table ingestion measurement similarly does not replace the complete application or live capture. Job success does not mean all numeric targets passed.
+
+The same nightly run compared VDF and cBPF over the same 20,000 packets, with three samples per evaluator. Median times were 1.239493 s and 0.055858 s respectively, a 22.19-fold improvement, with identical match counts. Two-series I/O graph rebuilds for 200,000 frames took 1.024516, 1.011629, 1.005382, 0.996721, and 0.996433 s at intervals 0.01, 0.1, 1, 10, and 60 s. The three shortest intervals narrowly exceeded the one-second target.
+
+On the Mac with Ruby 4.0.6, YJIT, and public Zaniah 0.12.4, the final 100,000,032-byte file check displayed its first verified row in 645.209 ms. Twenty distinct selections had p50 26.660 ms, p95 35.778 ms, and maximum 51.223 ms. The first-row target passed; the every-selection 50 ms target failed on the first selection. These are single-run headless production-window measurements with the same exclusions described above.
+
+A native Mac run with 120 samples verified opening, selection, filtering, and all 25,256 captured frames. Scene p95 was 28.804 ms and total native tick p95 was 47.850 ms. During sampling, the source delivered 19,453 frames in 4.40697 s, or 4,414.14 frames/s. The scene result meets 33 ms at that observed rate, but does not establish the requested 5,000 frames/s target.
+
+The [final five-minute Linux capture run](https://github.com/ydah/vanken/actions/runs/36999897569), at `2169b6a`, used Ruby 3.4.11 with YJIT and the public dependencies above. The actual administrator command installed 74 root-owned files, and capture-boundary tests verified the installation before running the UI with UID/EUID 1000. A real PTY additionally passed file opening, packet selection, filtering, the command palette, capture options, actual capture start/stop, and quit.
+
+The independent sender delivered 1,500,000 frames over 300.000066 s at 4,999.9989 frames/s. Kernel received, helper captured, durable, and final analyzed counts all equaled 1,500,000; drops, interface drops, and freezes were zero. Analysis drained 208.956 s after traffic ended, with a maximum sampled backlog of 578,656 frames. This establishes capture integrity and sender pacing while retaining the analysis-throughput limitation.
+
+During actual traffic, 2,492 frames rendered and 2,395 showed analyzed-row growth. Scene p95 was 78.807 ms and total render p95 was 81.711 ms, exceeding the 33 ms scene target. The file check in the same run displayed its first row in 788.282 ms, passing one second; selection p95 was 104.404 ms and maximum 111.676 ms, exceeding 50 ms. The earlier measurements remain above for comparison; shared-runner results do not establish a controlled before/after speedup.
+
+### Same-host analysis regression comparison
+
+The old Linux analysis time of 206.2345 s and the latest 245.5186 s came from different shared VMs. A separate same-host comparison checks the release procedure's 15% regression threshold without treating those environments as identical.
+
+The initial `26b3e7b` source and current `2169b6a` source were archived and run alternately on the same Mac. Both used the current public dependency lockfile, Ruby 4.0.6 with YJIT, a fresh Ruby process and analyzer child, the identical 58-byte UDP fixture and Enumerator, and a 50-frame warm-up. Each timed `Document.ingest(...).wait` with `process_analysis: true` over 100,000 frames. Initialization, warm-up, cleanup, kernel acquisition, and UI were excluded; no other local tests ran concurrently.
+
+| Sample | Initial source, seconds | Current source, seconds |
+| --- | ---: | ---: |
+| 1 | 11.307215 | 11.508561 |
+| 2 | 11.623641 | 12.657844 |
+| 3 | 12.123842 | 12.085011 |
+| Median | 11.623641 | 12.085011 |
+
+Median elapsed time increased 3.97%; median throughput changed from 8,603.16 to 8,274.71 frames/s, a 3.82% decrease. The 15% threshold was not exceeded for this workload. All six runs verified exactly 100,000 durable and analyzed frames, UDP decoding, no document error, and analyzer-child cleanup. This comparison does not explain the separate shared-VM Linux timing difference or establish the 15,000 frames/s target.
