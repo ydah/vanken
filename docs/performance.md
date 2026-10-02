@@ -24,15 +24,18 @@ Complete-application measurements use `Application`, `MainView`, real stored pac
 
 ## Recorded arm64 results
 
-Measured on 2026-10-02 using Ruby 4.0.6, YJIT, `arm64-darwin25`, and Zaniah 0.12.0. These are individual workstation runs, not isolated-machine medians. A six-second focused test run overlapped the beginning of the full benchmark; its UI phases ran without that competing test job.
+Measured on 2026-10-02 using Ruby 4.0.6, YJIT, `arm64-darwin25`, and Zaniah 0.12.0. These are individual workstation runs, not isolated-machine medians. Receiver, analysis, memory, and fast-filter figures below come from fresh processes after removing the duplicate in-memory frame index. Slow-filter and UI figures come from the earlier complete benchmark; a six-second focused test overlapped the start of that run, but not its UI phases.
 
 | Measurement | Result | Target |
 | --- | ---: | ---: |
-| Receiver, 1,000,000 frames | 324,609 frames/s | ≥ 100,000 |
-| Ingest and analyze, 1,000,000 frames | 15,620 frames/s; 64.0204 s | ≥ 15,000 |
-| Fast filter, 1,000,000 matches | 1.5499 s | ≤ 3 s |
+| Receiver, 1,000,000 frames | 380,823 frames/s | ≥ 100,000 |
+| Ingest and analyze, 1,000,000 frames | 17,012 frames/s; 58.7827 s | ≥ 15,000 |
+| Fast filter, 1,000,000 matches | 0.5473 s | ≤ 3 s |
 | Slow filter, four workers, 1,000,000 matches | 5.2345 s | ≤ 60 s |
-| Retained parent heap before/after fast filter | 100.76 / 111.91 B per frame | Heap proxy only |
+| Retained parent heap before/after fast filter | 67.22 / 75.23 B per frame | Heap proxy only |
+| Parent RSS increment after analysis | 183.68 B per frame | ≤ 200 |
+| Sampled parent-plus-analyzer RSS increment | 186.27 B per frame | ≤ 200 |
+| Parent RSS increment after fast filtering | 209.88 B per frame | ≤ 200; exceeded |
 | Virtual table, render p95 | 15.577 ms | ≤ 33 ms |
 | Virtual table during ingestion, render p95 | 13.880 ms | ≤ 33 ms |
 | Complete application, scene p95 | 29.186 ms | ≤ 33 ms |
@@ -45,7 +48,35 @@ A separate native 120-sample run produced 17,103 frames in 3.4840 seconds (4,909
 
 The former in-process analyzer exceeded 33 ms during correctly paced native ingestion. The default analyzer now runs in a separate unprivileged Ruby process, as required by the design's alternative. The child preserves analysis order and state, sends bounded batches through private pipes, and retains no complete second column store. The UI reads cached rows asynchronously.
 
-The first process benchmark measured a parent RSS increment of 189.97 B/frame and a sampled parent-plus-analyzer increment of 196.94 B/frame. Its baseline included pages from the earlier million-frame receiver run. After fast filtering, parent RSS reached 215.47 B/frame, exceeding the 200 B target. IPC now reserves its exact payload size and reuses one read buffer; fast port predicates read packed fields directly instead of allocating full rows, and metadata is fetched only when a filter uses it. A fresh document-only repeat measured 185.38 B/frame in the parent and 197.25 B/frame combined during analysis, but 210.39 B/frame after filtering. Historical results now reserve their known maximum capacity once, avoiding repeated native buffer growth. A final quiet RSS measurement is required before treating the after-filter target as satisfied.
+The fresh parent RSS baseline was 48,922,624 bytes, rising to 232,603,648 bytes after analysis and 258,801,664 after filtering. Frame metadata now stays on disk, removing approximately 33.55 MB of retained heap for one million frames. IPC reserves its exact payload size and reuses one read buffer; fast port predicates read packed fields directly, and metadata is fetched only when a filter uses it. Historical filter results reserve their known maximum array capacity once. The filter added 8.01 MB of retained heap but 26.20 MB of RSS; GC pages and JIT code explain only part of the difference. The additional after-filter RSS target remains exceeded on this macOS run.
+
+## Recorded x86_64 results
+
+The Linux shared runner used Ruby 3.4.10 with YJIT and Zaniah 0.12.0. [The complete benchmark and 5,000 deterministic fuzz cases](https://github.com/ydah/vanken/actions/runs/36966042551) finished without functional errors. Numeric targets are reported separately from job success.
+
+| Measurement | Result | Target |
+| --- | ---: | ---: |
+| Receiver, 1,000,000 frames | 209,288 frames/s | ≥ 100,000 |
+| Ingest and analyze, 1,000,000 frames | 4,394 frames/s; 227.6002 s | ≥ 15,000; missed |
+| Parent / combined / after-filter RSS increment | 80.53 / 86.76 / 91.04 B per frame | ≤ 200 |
+| Fast / four-worker slow filter | 1.9022 / 21.8657 s | ≤ 3 / 60 s |
+| Static full application, total render p95 | 357.855 ms | ≤ 33 ms; missed |
+| Growing full application, scene p95 | 331.801 ms | ≤ 33 ms; missed |
+
+The synthetic growing source reached only 187.96 frames/s during sampling, so this run does not demonstrate responsiveness at 5,000 frames/s. An independent native run did deliver 4,963.99 frames/s within the pacing allowance, but active scene p95 was 230.321 ms, also missing the target.
+
+Investigation reproduced a Zaniah focus-tree retention bug: a three-row tree retained 18 row handles after six renders. The fix included in Zaniah 0.12.1 releases render-created parent links between frames while preserving manual hierarchies. The same Linux arm64 container, Ruby 3.4.11 with YJIT, UID 1000, fonts, 4,096-packet document, 100 warm renders, and 120 scrolling samples were measured before and after changing only the Dispatcher implementation:
+
+| Measurement | Before fix | After fix |
+| --- | ---: | ---: |
+| Total render p95 | 170.473 ms | 23.626 ms |
+| Scene p95 | 170.023 ms | 22.585 ms |
+| Maximum total render | 207.739 ms | 26.533 ms |
+| GC p95 | 148.697 ms | 6.289 ms |
+| Major GC during 120 samples | 15 | 0 |
+| Samples exceeding 33 ms | 43 | 0 |
+
+Per-frame allocations remained approximately 84,600 objects, supporting retained old rows as the cause of expensive GC. The three-row reproduction now retained exactly three current handles after each render, with no obsolete handles. This static arm64 diagnostic establishes the fix's effect; it does not substitute for x86_64 or sustained live-capture verification.
 
 ## Linux capture and operation latency
 

@@ -20,7 +20,7 @@ apt-get update
 apt-get install -y --no-install-recommends iproute2 iputils-ping sudo fonts-dejavu-core fonts-noto-cjk libvulkan1
 gem install --no-document redhound --version 2.0.0.rc2
 gem install --no-document rspec --version '~> 3.13'
-gem install --no-document zaniah --version '~> 0.12.0'
+gem install --no-document zaniah --version '~> 0.12.1'
 gem install --no-document fiddle --version '~> 1.1'
 
 install -d -m 0755 /opt/vanken-tests /usr/local/libexec/vanken
