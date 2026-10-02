@@ -24,7 +24,7 @@ module Vanken
         validate_directory
         File.chmod(0o700, @directory)
         @mutex = Mutex.new
-        @index = +"".b
+        @count = 0
         @interfaces = []
         @durable_count = 0
         @closed = false
@@ -34,13 +34,14 @@ module Vanken
         @data.seek(0, IO::SEEK_END)
         @records.seek(0, IO::SEEK_END)
         @reader = File.open(File.join(@directory, "frames.bin"), "rb")
+        @index_reader = File.open(File.join(@directory, "frames.idx"), "rb")
         persist("session.json", {"schema_version" => 1, "created_at" => Time.now.utc.iso8601, "pid" => Process.pid})
       end
 
       # @rbs (String directory) -> FrameStore
       def self.recover(directory) = new(directory: directory, recover: true)
       # @rbs () -> Integer
-      def count = @mutex.synchronize { @index.bytesize / RECORD_SIZE }
+      def count = @mutex.synchronize { @count }
       # @rbs () -> Integer
       # Published only after both files flush; reading the immutable count must not wait for writer IO.
       def durable_count = @durable_count
@@ -57,8 +58,7 @@ module Vanken
                     frame.linktype, interface, direction].pack(RECORD)
           @data.write(frame.bytes)
           @records.write(record)
-          @index << record
-          @index.bytesize / RECORD_SIZE
+          @count += 1
         end
       end
 
@@ -67,7 +67,7 @@ module Vanken
         @mutex.synchronize do
           @data.flush
           @records.flush
-          @durable_count = @index.bytesize / RECORD_SIZE
+          @durable_count = @count
         end
         self
       end
@@ -76,7 +76,14 @@ module Vanken
       def metadata(number)
         @mutex.synchronize do
           raise IndexError, "frame is not durable" unless number.is_a?(Integer) && number.between?(1, @durable_count)
-          record = @index.byteslice((number - 1) * RECORD_SIZE, RECORD_SIZE) || raise(IOError, "truncated frame index")
+          offset = (number - 1) * RECORD_SIZE
+          record = if @index_reader.respond_to?(:pread)
+            @index_reader.pread(RECORD_SIZE, offset)
+          else
+            @index_reader.seek(offset)
+            @index_reader.read(RECORD_SIZE)
+          end
+          raise IOError, "truncated frame index" unless record && record.bytesize == RECORD_SIZE
           values = record.unpack(RECORD)
           {offset: values[0], caplen: values[1], original_length: values[2], timestamp_ns: values[3],
            linktype: values[4], interface: values[5] == 0xffff ? nil : @interfaces.fetch(values[5]),
@@ -104,7 +111,7 @@ module Vanken
       def close(remove: true)
         @mutex.synchronize do
           unless @closed
-            [@data, @records, @reader].compact.each(&:close)
+            [@data, @records, @reader, @index_reader].compact.each(&:close)
             @closed = true
           end
         end
@@ -152,22 +159,20 @@ module Vanken
           raise Vanken::FileError, "unsafe session file" if File.symlink?(File.join(@directory, name))
         end
         path = File.join(@directory, "frames.idx")
-        bytes = File.binread(path)
         limit = File.size(File.join(@directory, "frames.bin"))
         @interfaces = JSON.parse(File.read(File.join(@directory, "interfaces.json"))) if File.exist?(File.join(@directory, "interfaces.json"))
-        complete = bytes.bytesize / RECORD_SIZE
         expected_offset = 0
-        complete.times do |index|
-          record = bytes.byteslice(index * RECORD_SIZE, RECORD_SIZE) || raise(IOError, "truncated frame index")
-          offset, caplen, original, _time, _link, interface, direction = record.unpack(RECORD)
-          break unless offset == expected_offset && caplen <= 16 << 20 && offset + caplen <= limit && original >= caplen && (interface == 0xffff || interface < @interfaces.size) && direction <= 2
-          @index << bytes.byteslice(index * RECORD_SIZE, RECORD_SIZE)
-          expected_offset = offset + caplen
+        File.open(path, "rb") do |io|
+          while (record = io.read(RECORD_SIZE)) && record.bytesize == RECORD_SIZE
+            offset, caplen, original, _time, _link, interface, direction = record.unpack(RECORD)
+            break unless offset == expected_offset && caplen <= 16 << 20 && offset + caplen <= limit && original >= caplen && (interface == 0xffff || interface < @interfaces.size) && direction <= 2
+            @count += 1
+            expected_offset = offset + caplen
+          end
         end
-        @durable_count = @index.bytesize / RECORD_SIZE
-        File.truncate(path, @index.bytesize)
-        last = @index.empty? ? 0 : @index.byteslice(-RECORD_SIZE, RECORD_SIZE).unpack(RECORD).then { |row| row[0] + row[1] }
-        File.truncate(File.join(@directory, "frames.bin"), last)
+        @durable_count = @count
+        File.truncate(path, @count * RECORD_SIZE)
+        File.truncate(File.join(@directory, "frames.bin"), expected_offset)
       end
     end
   end

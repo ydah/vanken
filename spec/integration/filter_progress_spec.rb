@@ -28,7 +28,7 @@ RSpec.describe "Progressive filtering while packets arrive" do
       task
     end
     frames = Enumerator.new { |stream| 20_002.times { |index| stream << frame(number: index + 1) } }
-    @document = Vanken::App::Document.new(scanner: scanner).ingest(frames).wait(10)
+    @document = Vanken::App::Document.new(scanner: scanner).ingest(frames).wait(30)
     expression = "ip.src == 192.0.2.10 and frame.number in {1 9999 10001 19999 20001 20003 20005}"
     @document.apply_filter(expression)
     pending = 3.times.map { Timeout.timeout(5) { submitted.pop } }

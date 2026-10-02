@@ -15,6 +15,7 @@ module Vanken
             @document.store.flush
             @document.signal
             flushed_at = now
+            Thread.pass
           end
         end
       rescue StandardError => error
