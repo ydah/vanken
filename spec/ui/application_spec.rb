@@ -87,6 +87,17 @@ RSpec.describe "Packet inspection window" do
     settle { @ui.document.nil? }
   end
 
+  it "discards a deferred row fetch before shutdown and closes idempotently" do
+    doc = Vanken::App::Document.new.ingest([frame]).wait
+    @ui.attach_document(doc)
+    executor = @ui.app.executor
+    allow(executor).to receive(:background).and_call_original
+    expect(@ui.packet_source.value(0, :info)).to be_nil
+    expect { @ui.close }.not_to raise_error
+    expect(executor).not_to have_received(:background)
+    expect { @ui.close }.not_to raise_error
+  end
+
   it "renders welcome, themes, and native headless smoke without requiring a capture" do
     @ui.window.tick
     expect(Zaniah::Inspection.snapshot(@ui.window).find(test_id: "vk.welcome")).not_to be_nil

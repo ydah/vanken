@@ -122,6 +122,7 @@ module Vanken
       def close
         return if @closed
         @closing = true
+        @packet_source.reset
         @selection_generation += 1
         @filter_generation += 1
         @file_generation += 1
