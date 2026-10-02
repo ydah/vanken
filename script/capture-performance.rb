@@ -303,7 +303,8 @@ module VankenCapturePerformance
       ui.window.extend(SceneOnlyRender)
       ui.window.draw { view }
       100.times { render_frame(ui, view) }
-      result = {ruby: RUBY_DESCRIPTION, platform: RUBY_PLATFORM, viewport: [1280, 800],
+      result = {ruby: RUBY_DESCRIPTION, platform: RUBY_PLATFORM,
+        zaniah: Gem.loaded_specs.fetch("zaniah").version.to_s, viewport: [1280, 800],
         scope: "Production Application, real fonts, render(present: false): layout, prepaint, scene paint, accessibility. Native events, pixel rasterization and GPU presentation excluded.",
         file: file_latencies(ui, view, directory, min_bytes: min_bytes)}
       File.write(File.join(reports, "file-latency.json"), JSON.pretty_generate(result) + "\n")

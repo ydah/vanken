@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "redhound", "2.0.0.rc2"
-  spec.add_dependency "zaniah", "~> 0.12.1"
+  spec.add_dependency "zaniah", "~> 0.12.3"
   spec.add_dependency "fiddle", "~> 1.1"
 
 end

@@ -75,7 +75,7 @@ bundle exec ruby script/benchmark.rb
 script/capture-ci.sh
 ```
 
-To develop with a sibling Zaniah checkout, set `VANKEN_ZANIAH_PATH=../zaniah` when running Bundler. Production dependencies are redhound `2.0.0.rc2` and Zaniah `~> 0.12.1`, including the fix for growing memory use during redraws.
+To develop with a sibling Zaniah checkout, set `VANKEN_ZANIAH_PATH=../zaniah` when running Bundler. Production dependencies are redhound `2.0.0.rc2` and Zaniah `~> 0.12.3`, including fixes for growing memory use and repeated style allocations during redraws.
 
 See [upstream contracts](docs/upstream.md), [measured performance](docs/performance.md), and [release procedure](docs/releases.md). Version 0.1 implements the file inspection, acquisition, and display filter milestones. Statistics, stream following, coloring, profiles, and later extensions are scheduled for subsequent releases.
 
