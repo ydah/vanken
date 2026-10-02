@@ -12,6 +12,10 @@ RSpec.describe "Analysis dialogs" do
     preferences.set("layout.width", 1000)
     preferences.set("layout.height", 800)
     @ui = Vanken::UI::Application.new(backend: :headless, preferences: preferences)
+    # Keep the real layout, focus, and scene rendering; assertions do not inspect pixels.
+    allow(@ui.window).to receive(:render).and_wrap_original do |original, element, **options|
+      original.call(element, **options, present: false)
+    end
     @doc = Vanken::App::Document.new(process_analysis: false).ingest([
       frame(tcp_bytes(seq: 100, flags: 2)),
       frame(tcp_bytes(seq: 101, flags: 16, payload: "hello world"), number: 2),
