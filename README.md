@@ -27,6 +27,8 @@ gem install ./vanken-0.1.0.gem
 vanken capture.pcapng
 ```
 
+Strict gem builds require RubyGems 4.0.16 or newer; older versions reject the pinned redhound prerelease with a recommendation warning.
+
 Open a capture from the toolbar, a recent file, or a file drop. Select a packet to inspect its protocol tree and bytes. Selecting a field highlights its bytes; selecting bytes finds the corresponding field. Columns can be sorted, resized, hidden, and reordered. Themes, font size, split positions, columns, and filter history persist between sessions.
 
 Enter a display filter and choose Apply, or press Enter in the filter field:

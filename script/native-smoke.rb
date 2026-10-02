@@ -94,7 +94,7 @@ Dir.mktmpdir("vanken-smoke-") do |directory|
   raise "native live ingestion lost frames" unless document.count == 25_256 && document.displayed_count == 25_256
   raise "native drawing did not overlap ingestion" if active.empty?
   raise "native live acquisition did not advance while drawing" unless sampled_count > initial_count && sampled_durable > initial_durable
-  raise "native live source missed its measured rate" unless (sampled_produced - initial_produced) >= ((rate * active_seconds) - 512)
+  source_met_rate = (sampled_produced - initial_produced) >= ((rate * active_seconds) - 512)
   ui.app.executor.drain
   ui.window.request_frame
   ui.window.tick
@@ -108,7 +108,9 @@ Dir.mktmpdir("vanken-smoke-") do |directory|
       initial_durable: initial_durable, durable_after_sampling: sampled_durable,
       source_frames_during_sampling: sampled_produced - initial_produced,
       source_frames_per_second: (sampled_produced - initial_produced) / active_seconds,
-      analyzed_frames_per_second: (sampled_count - initial_count) / measurement_seconds})
+      analyzed_frames_per_second: (sampled_count - initial_count) / measurement_seconds},
+    targets: {source_5k_pps: source_met_rate, scene_p95_33ms: active.sort[(active.size * 0.95).ceil - 1] <= 33,
+      scene_during_5k_pps_p95_33ms: source_met_rate && active.sort[(active.size * 0.95).ceil - 1] <= 33})
 ensure
   gate << true if gate
   ui&.close

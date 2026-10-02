@@ -25,6 +25,7 @@ jobs:
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: ${{ matrix.ruby }}
+          rubygems: '4.0.16'
           bundler-cache: true
       - name: Check generated signatures
         run: |
@@ -44,6 +45,7 @@ jobs:
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: '3.4'
+          rubygems: '4.0.16'
           bundler-cache: true
       - name: Check file inspection and filtering
         run: bundle exec rspec spec/architecture spec/unit/display_filter spec/unit/cli_spec.rb spec/integration/document_spec.rb spec/integration/reassembly_filters_spec.rb
@@ -59,6 +61,7 @@ jobs:
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: '3.4'
+          rubygems: '4.0.16'
           bundler-cache: true
       - name: Install desktop dependencies
         run: |
