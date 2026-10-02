@@ -1,5 +1,7 @@
 # Live capture permissions
 
+## Review the installation plan
+
 `vanken-setup-permissions` installs the files shipped in `packaging/linux/` or `packaging/macos/`. Review the macOS plan first:
 
 ```sh
@@ -12,6 +14,8 @@ On Linux, provide the canonical absolute paths of a root-owned Ruby 3.3 or newer
 vanken-setup-permissions --platform linux --dry-run \
   --ruby /opt/vanken-ruby/bin/ruby --gem-home /opt/vanken-ruby/gems
 ```
+
+## Install on Linux
 
 The following administrator installation assumes Ruby is already installed under `/opt/vanken-ruby`, with root-owned runtime files that are not writable by group or other users. Install Vanken into the isolated root-owned gem home, then run its packaged setup command with that same interpreter:
 
@@ -27,6 +31,8 @@ The installer checks the interpreter, its library paths, runtime tree, gem home,
 
 For headless Linux or sudo instead of polkit, create a dedicated capture group and add only users who should inspect network traffic. Log out and log in after changing group membership, then use `--policy sudoers --group vanken` in the setup command. The installer requires `visudo` and validates the rule before installing `/etc/sudoers.d/vanken`. It never grants capabilities to a shared Ruby interpreter.
 
+## Install on macOS
+
 On macOS, create the intended group, install the BPF daemon, and activate it:
 
 ```sh
@@ -40,9 +46,13 @@ Log out and log in after joining the group. The daemon grants the group mode `06
 
 Use `--root /absolute/staging-directory` to prepare files in an existing directory without activating system permissions. A staged tree is for review and packaging; it does not validate or grant trust to the runtime paths. Neither `--dry-run` nor staging loads the macOS daemon. To remove the installed macOS configuration, unload `org.vanken.chmod-bpf` with `launchctl bootout`, remove its plist and `chmod-bpf` script, and restore the BPF device ownership/permissions prescribed by your administrator.
 
+## Capture helper security
+
 The application runs as your normal user. The capture helper opens the capture device, drops supplementary groups and both real and effective group/user IDs, and writes pcapng to stdout. The interpreter, helper, libraries, gems, and every parent directory of the privileged wrapper must be owned by root and must not be writable by group or other users.
 
 On macOS, grant the intended capture group access to `/dev/bpf*` using an administrator-managed startup configuration. Once `vanken-capture --check --interface lo0` reports `"direct":true`, Vanken can capture without sudo. Device permissions may need to be restored after a reboot.
+
+## Manual Linux installation
 
 For Linux, an administrator can install an isolated Ruby runtime and the required redhound gem under a root-owned prefix, copy `lib/` and `exe/vanken-capture` into `/usr/local/libexec/vanken/`, and install this fixed-path wrapper. Replace the runtime and gem paths below with the actual root-owned installation paths:
 
@@ -63,6 +73,8 @@ An administrator may grant a dedicated capture group access through sudoers:
 ```
 
 Validate the rule with `visudo`. Members of this group can capture network traffic. Vanken supplies `--drop-to UID:GID` for the invoking user and only invokes the fixed wrapper through sudo or pkexec. A polkit policy must likewise allow that fixed path; an optional askpass helper must meet the same ownership requirements. Vanken rejects elevation of a development checkout and does not grant capabilities to a general-purpose Ruby interpreter.
+
+## Verify device access
 
 `vanken-capture --list-interfaces` lists interfaces without elevated privileges. `vanken-capture --check --interface IF` checks direct device access. A helper invoked manually with sudo needs `--drop-to` because the wrapper clears the environment:
 

@@ -1,101 +1,120 @@
-# Vanken
+<h1 align="center">Vanken</h1>
 
-A packet capture and inspection desktop application written in Ruby. Vanken reads pcap and pcapng files, displays a virtual packet list alongside protocol details and bytes, and filters captures with its own display filter language.
+<p align="center">
+  <strong>A Ruby packet analyzer for live capture, pcap files, and protocol inspection.</strong>
+</p>
 
-Packet acquisition runs in a separate helper; ordered packet analysis runs in another unprivileged process. The desktop application runs as a regular user. Raw frames and summaries are spooled to private files; slow filters use worker processes.
+<p align="center">
+  <a href="https://rubygems.org/gems/vanken"><img src="https://img.shields.io/gem/v/vanken.svg" alt="Gem version"></a>
+  <a href="https://rubygems.org/gems/vanken"><img src="https://img.shields.io/gem/dt/vanken.svg" alt="Gem downloads"></a>
+  <a href="https://github.com/ydah/vanken/actions/workflows/main.yml"><img src="https://github.com/ydah/vanken/actions/workflows/main.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="vanken.gemspec"><img src="https://img.shields.io/badge/Ruby-%3E%3D%203.3-cc342d.svg" alt="Ruby 3.3 or newer"></a>
+  <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
 
-## Requirements
+<p align="center">
+  <a href="https://ydah.github.io/vanken/">Website</a> ·
+  <a href="https://ydah.github.io/vanken/docs/">User Guide</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#quick-start">Quick start</a>
+</p>
 
-- Ruby 3.3 or newer; Ruby 3.4 or 4.0 with YJIT is recommended.
-- Linux with a desktop session, or macOS. File inspection is also available on Windows; live capture uses Linux packet sockets or macOS BPF.
-- Linux desktop dependencies: Vulkan loader and drivers, fonts, and `zenity` for native file dialogs. On Ubuntu: `sudo apt install libvulkan1 mesa-vulkan-drivers fonts-dejavu-core fonts-noto-cjk zenity`.
+---
 
-## Install
+Vanken opens pcap and pcapng captures in a desktop or terminal interface, with
+a packet list, protocol details, and synchronized byte highlighting. It uses
+[redhound](https://github.com/ydah/redhound) for packet analysis and
+[Zaniah](https://github.com/noxdea/zaniah) for its interface.
+
+[![Vanken packet inspection](docs/media/overview.png)](https://ydah.github.io/vanken/docs/usage.html)
+
+## Features
+
+- Inspect packets with a sortable virtual list, protocol tree, byte view, and custom field columns.
+- Apply typed display filters with completion, history, and bookmarks; search by filter, bytes, text, or regular expression.
+- Use coloring rules, marks, ignored packets, time references, and conversation navigation.
+- Follow TCP streams, inspect expert diagnostics, and explore protocol hierarchy, conversations, endpoints, and I/O graphs.
+- Capture on Linux and macOS with BPF filters, automatic stop conditions, and rotating pcapng files.
+- Configure Decode As rules and explicitly trusted Ruby dissector plugins.
+- Save pcap/pcapng, export dissections as JSON, NDJSON, text, or CSV, and recover interrupted capture sessions.
+- Switch profiles, Japanese or English, and dark, light, system, or high-contrast themes. Optional address resolution runs asynchronously and is disabled by default.
+
+## Installation
+
+Install the released gem:
 
 ```sh
 gem install vanken
+vanken --version
+```
+
+Vanken requires Ruby 3.3 or newer. Ruby 3.4 or 4.0 with YJIT is recommended;
+the launcher enables YJIT when available. Native Linux windows need the Vulkan
+loader and drivers, fonts, and `zenity` for file dialogs. On Ubuntu:
+
+```sh
+sudo apt install libvulkan1 mesa-vulkan-drivers fonts-dejavu-core fonts-noto-cjk zenity
+```
+
+Linux and macOS support live capture. Windows supports file inspection.
+Run Vanken as your normal user. Live capture needs device access or an
+administrator-installed helper with a fixed, root-owned runtime. The gem
+includes `vanken-setup-permissions` for Linux policies and macOS BPF access;
+follow the [capture permissions guide](https://ydah.github.io/vanken/docs/capture-permissions.html)
+before installing system permissions.
+
+## Quick start
+
+Open a capture in the desktop interface:
+
+```sh
 vanken capture.pcapng
 ```
 
-For a source checkout:
+Use a real terminal, or print filtered packet columns without a window:
 
 ```sh
-git clone https://github.com/ydah/vanken.git
-cd vanken
-bundle install
-bundle exec exe/vanken capture.pcapng
+vanken --tui capture.pcapng
+vanken --headless --read capture.pcapng --print-columns --filter 'tcp.port == 443'
 ```
 
-Strict gem builds require RubyGems 4.0.16 or newer; older versions reject the pinned redhound prerelease with a recommendation warning.
+Select a packet to inspect its fields and bytes. Enter a display filter such as
+`tcp.port == 443` or `ip.addr in {192.0.2.0/24, 198.51.100.5}`, then press Enter
+in the filter field. Vanken display filters and BPF acquisition filters are
+separate languages; see the [filter reference](https://ydah.github.io/vanken/docs/filters.html).
 
-Open a capture from the toolbar, a recent file, or a file drop. Select a packet to inspect its protocol tree and bytes. Selecting a field highlights its bytes; selecting bytes finds the corresponding field. Columns can be sorted, resized, hidden, and reordered. Themes, font size, split positions, columns, and filter history persist between sessions.
+Run `vanken` without a path to open the welcome screen and choose a capture
+interface. Ctrl+O opens a file, Ctrl+E starts or stops capture, and Ctrl+Shift+K
+opens the command palette. The native macOS window uses Command instead of
+Ctrl; the terminal uses Ctrl on both platforms. Tab, Shift+Tab, Enter, and
+Escape navigate terminal controls. Run `vanken --help` for all CLI options.
 
-Enter a display filter and choose Apply, or press Enter in the filter field:
+## Configuration and limits
 
-```text
-tcp.port == 443
-ip.addr in {192.0.2.0/24, 198.51.100.5}
-tcp.flags.syn == true && tcp.flags.ack == false
-http.host contains "example"
-frame.len > 1000 && !udp
-```
+Preferences use safe YAML in the platform's user configuration directory.
+Profiles separate preferences, columns, coloring rules, bookmarks, Decode As,
+and plugins; recent files and window geometry are shared. Stop capture before
+switching profiles or changing dissectors. Plugins execute with your account's
+permissions and require explicit trust. See the
+[usage guide](https://ydah.github.io/vanken/docs/usage.html) for settings paths,
+keyboard controls, stream and export limits, and recovery.
 
-Vanken display filters (VDF) and acquisition filters (BPF) are separate languages. See [display filters](docs/filters.md) for operators, types, and repeated fields.
+Live acquisition can outpace analysis on slower systems. Captured packets are
+stored while queued analysis finishes, but throughput, redraw latency, and
+memory targets remain unmet in some measured workloads. See the
+[performance reports](https://ydah.github.io/vanken/docs/performance.html) for
+test conditions, results, and current limits.
 
-## Analysis
+## Documentation
 
-Use the menus or the command palette (Ctrl+Shift+K; Command+Shift+K in the macOS desktop application) to find actions. Search by display filter, hexadecimal bytes, string, or regular expression. Mark and ignore packets, change the time reference, and move between packets in the same conversation. Packet and field context menus expose filter and analysis actions.
-
-Coloring rules can be edited, reordered, imported, and exported. Add a protocol field as a custom column from the details tree, then change its position, width, or visibility in the column editor. Custom columns sort by their field types.
-
-Follow TCP Stream reconstructs each direction, reports missing data, and supports ASCII, hexadecimal, and raw views, searching, saving, and excluding a stream. Statistics include protocol hierarchy, conversations, endpoints, and packet properties. I/O graphs accept display filters per series and intervals from 0.01 to 60 seconds. Expert information links diagnostics to their packets.
-
-Decode As rules and registered Ruby dissector plugins are applied to packet summaries, details, and filter workers. Plugins require an explicit trust confirmation before loading. Save captures as pcap or pcapng, export selected ranges, or export dissections as JSON, NDJSON, text, or CSV.
-
-Preferences include Japanese and English, dark/light/system/high-contrast themes, analysis limits, and optional asynchronous address resolution. Profiles keep preferences, columns, coloring, bookmarks, Decode As rules, and plugins separate; recent files and window geometry are shared. Stop capture before switching profiles or changing dissectors. Analysis preferences changed during loading or capture are applied when it finishes. Interrupted captures can be recovered or discarded on the next start.
-
-## Capture
-
-Choose Start, select an interface, and optionally set a BPF acquisition filter. Stop preserves captured packets for inspection and saving. Vanken asks before discarding an unsaved capture.
-
-Capture options include automatic stopping by packet count, duration, or byte count, and rotating pcapng files by size or time with a bounded file count. The welcome screen shows interface traffic rates. Saving includes all durable packets even while analysis is still catching up.
-
-```sh
-bundle exec exe/vanken-capture --list-interfaces
-bundle exec exe/vanken-capture --check --interface lo
-```
-
-Direct acquisition works when the account already has permission. Privileged launching requires a root-owned installation with a fixed interpreter and dependencies; see [capture helper setup](packaging/README.md). Run the desktop application as a regular user.
-
-The gem includes `vanken-setup-permissions` for administrator installation of Linux capture permissions and the macOS BPF LaunchDaemon. Review the platform-specific setup guide and the command's `--dry-run` output first. GitHub releases also include the permission policies, desktop entry, wrappers, and macOS script in a packaging archive.
-
-## Command line
-
-```sh
-bundle exec exe/vanken --headless --read capture.pcap --print-columns --filter 'tcp.port == 443'
-bundle exec exe/vanken --tui capture.pcapng
-bundle exec exe/vanken --headless --smoke
-```
-
-`--no-yjit` disables default YJIT activation. `--debug` enables debug logging. Preferences use safe YAML in the platform's user configuration directory; logs rotate without retaining raw packet bytes.
-
-The terminal UI supports opening captures, selecting packets, applying filters, and starting/stopping capture with keyboard actions. Details of keyboard controls, settings files, and analysis limits are in the [usage guide](docs/usage.md).
-
-## Development
-
-```sh
-bundle install
-bundle exec rake
-bundle exec rake rbs
-bundle exec ruby script/generate_fixtures.rb --performance
-bundle exec ruby script/benchmark.rb
-script/capture-ci.sh
-```
-
-To develop with a sibling Zaniah checkout, set `VANKEN_ZANIAH_PATH=../zaniah` when running Bundler. Production dependencies are redhound `2.0.0.rc2` and Zaniah `~> 0.12.4`.
-
-See [upstream contracts](docs/upstream.md), [measured performance](docs/performance.md), and [release procedure](docs/releases.md). Live acquisition can outpace analysis, and redraw latency on slower Linux machines remains above the design target; captured packets are retained while queued analysis finishes.
+- [User Guide](https://ydah.github.io/vanken/docs/)
+- [Display filters](https://ydah.github.io/vanken/docs/filters.html)
+- [Capture permissions](https://ydah.github.io/vanken/docs/capture-permissions.html)
+- [Performance measurements](https://ydah.github.io/vanken/docs/performance.html)
+- [Development](https://ydah.github.io/vanken/docs/development.html) and [dependency contracts](docs/upstream.md)
+- [Release procedure](https://ydah.github.io/vanken/docs/releases.html) and [changelog](CHANGELOG.md)
 
 ## License
 
-[MIT](LICENSE.txt).
+Vanken is released under the [MIT License](LICENSE.txt).

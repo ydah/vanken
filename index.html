@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vanken is a Ruby desktop and terminal packet analyzer. Read pcap and pcapng captures, filter traffic, follow TCP streams, and inspect protocols alongside their bytes.">
+  <meta name="theme-color" content="#0b1725">
+  <meta property="og:title" content="Vanken — Packet inspection, written in Ruby">
+  <meta property="og:description" content="Read captures, follow conversations, and inspect every protocol alongside its bytes.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ydah.github.io/vanken/">
+  <meta property="og:image" content="https://ydah.github.io/vanken/docs/media/overview.png">
+  <link rel="canonical" href="https://ydah.github.io/vanken/">
+  <link rel="stylesheet" href="site.css">
+  <title>Vanken — Packet inspection, written in Ruby</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./" aria-label="Vanken home">Vanken</a>
+      <nav aria-label="Primary navigation">
+        <a href="#features">Features</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="docs/">User guide</a>
+        <a href="https://github.com/ydah/vanken">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero container">
+      <div class="hero-copy">
+        <h1>Packet inspection,<br>written in Ruby.</h1>
+        <p class="lead">Open a capture, filter the traffic, and read each protocol alongside its bytes. Follow the conversation from the packet list to the full TCP stream.</p>
+        <div class="actions">
+          <a class="button" href="docs/">Read the user guide</a>
+          <a class="button secondary" href="https://rubygems.org/gems/vanken">Install the gem</a>
+        </div>
+      </div>
+      <div class="install-command">
+        <p>Start with a capture file</p>
+        <pre><code>gem install vanken
+vanken capture.pcapng</code></pre>
+        <p class="requirements">Ruby 3.3+ · Desktop, terminal, and headless inspection</p>
+      </div>
+      <figure class="application-preview">
+        <img src="docs/media/overview.png" width="1280" height="800" alt="Vanken showing a colored packet list, an expanded protocol tree, and linked hexadecimal bytes." fetchpriority="high">
+        <figcaption>The real Vanken interface, rendered from synthetic example traffic.</figcaption>
+      </figure>
+    </section>
+    <section class="platforms" aria-label="Supported platforms">
+      <div class="container platform-list">
+        <p><strong>Linux</strong><span>Capture and inspection</span></p>
+        <p><strong>macOS</strong><span>Capture and inspection</span></p>
+        <p><strong>Windows</strong><span>File inspection</span></p>
+        <p><strong>pcap / pcapng</strong><span>Read, save, and export</span></p>
+      </div>
+    </section>
+    <section id="features" class="container features">
+      <div class="section-intro">
+        <h2>From traffic to protocol details.</h2>
+        <p>Keep the capture, its conversations, and the original bytes within reach.</p>
+      </div>
+      <dl class="feature-list">
+        <div><dt>Inspect every layer</dt><dd>Browse a virtual packet list, expand the protocol tree, and select fields to highlight their bytes. Add typed protocol fields as custom columns.</dd></div>
+        <div><dt>Find the packets that matter</dt><dd>Filter with protocol fields and addresses, search text or bytes, and use editable coloring, marks, time references, and conversation navigation.</dd></div>
+        <div><dt>Follow the conversation</dt><dd>Reconstruct both directions of a TCP stream, handle retransmissions and missing data, search the content, and save the full stream.</dd></div>
+        <div><dt>See the capture as a whole</dt><dd>Explore protocol hierarchy, conversations, endpoints, expert information, and filtered I/O graphs. Export packets or dissections as JSON, text, or CSV.</dd></div>
+        <div><dt>Capture as your regular user</dt><dd>A separate capture helper handles device access. Configure permissions once, then stop automatically or rotate capture files while inspecting traffic.</dd></div>
+        <div><dt>Work in your own setup</dt><dd>Choose the desktop or terminal interface, Japanese or English, and light, dark, or high-contrast themes. Keep preferences and analysis extensions in profiles.</dd></div>
+      </dl>
+    </section>
+    <section id="quick-start" class="quick-start">
+      <div class="container quick-start-grid">
+        <div>
+          <h2>Open your first capture.</h2>
+          <p>Install the gem and open an existing pcap or pcapng file. Select a row to inspect its protocols and bytes, then apply a display filter to narrow the packet list.</p>
+          <p>For live traffic, set up <a href="docs/capture-permissions.html">capture permissions</a> and choose an interface. Run the application as your regular user.</p>
+          <a class="button" href="docs/">Get started</a>
+        </div>
+        <div class="commands">
+          <h3>Desktop</h3>
+          <pre><code>vanken capture.pcapng</code></pre>
+          <h3>Terminal</h3>
+          <pre><code>vanken --tui capture.pcapng</code></pre>
+          <h3>Filter from the command line</h3>
+          <pre><code>vanken --headless --read capture.pcapng \
+  --print-columns --filter 'tcp.port == 443'</code></pre>
+        </div>
+      </div>
+    </section>
+    <section class="container reading">
+      <h2>Keep exploring.</h2>
+      <div class="reading-list">
+        <a href="docs/usage.html"><strong>User guide</strong><span>Inspection, streams, exports, profiles, and keyboard controls</span></a>
+        <a href="docs/filters.html"><strong>Display filters</strong><span>Operators, field types, repeated values, and examples</span></a>
+        <a href="docs/capture-permissions.html"><strong>Capture permissions</strong><span>Linux and macOS administrator setup</span></a>
+        <a href="docs/performance.html"><strong>Measurements and limits</strong><span>Tested workloads and current performance constraints</span></a>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer container">
+    <p>Vanken is open source under the <a href="https://github.com/ydah/vanken/blob/main/LICENSE.txt">MIT License</a>.</p>
+    <a href="https://github.com/ydah/vanken">Source on GitHub</a>
+  </footer>
+</body>
+</html>

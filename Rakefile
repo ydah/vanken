@@ -21,4 +21,16 @@ task :steep do
   sh "bundle exec steep check -j 2"
 end
 
-task default: %i[spec lint steep]
+namespace :docs do
+  desc "Validate generated documentation links and assets"
+  task :check do
+    sh "bundle exec ruby tools/build_docs.rb --check"
+  end
+
+  desc "Build the website and user guide in tmp/site"
+  task :build do
+    sh "bundle exec ruby tools/build_docs.rb"
+  end
+end
+
+task default: %i[spec lint steep docs:check]

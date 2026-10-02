@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="<%= h(page[:lead]) %>">
+  <meta name="theme-color" content="#0b1725">
+  <link rel="canonical" href="https://ydah.github.io/vanken/<%= page[:path].sub(/index\.html\z/, '') %>">
+  <link rel="stylesheet" href="<%= relative(page[:path], 'site.css') %>">
+  <title><%= h(page[:title]) %> · Vanken User Guide</title>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="<%= relative(page[:path], 'index.html') %>">Vanken <small>User guide</small></a>
+      <nav aria-label="Global navigation">
+        <a href="<%= relative(page[:path], 'index.html') %>">Home</a>
+        <a href="<%= relative(page[:path], 'docs/index.html') %>">User guide</a>
+        <a href="https://github.com/ydah/vanken">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <aside class="sidebar" aria-label="Guide navigation">
+      <% pages.group_by { |item| item[:group] }.each do |group, items| %>
+        <div class="nav-group"><h2><%= h(group) %></h2>
+          <% items.each do |item| %>
+            <a href="<%= relative(page[:path], item[:path]) %>"<%= ' aria-current="page"' if item == page %>><%= h(item[:title]) %></a>
+          <% end %>
+        </div>
+      <% end %>
+    </aside>
+    <main id="content" class="content">
+      <details class="mobile-nav">
+        <summary>Browse the user guide</summary>
+        <nav aria-label="Mobile guide navigation">
+          <% pages.each do |item| %>
+            <a href="<%= relative(page[:path], item[:path]) %>"<%= ' aria-current="page"' if item == page %>><%= h(item[:title]) %></a>
+          <% end %>
+        </nav>
+      </details>
+      <div class="page-heading">
+        <p class="breadcrumb"><a href="<%= relative(page[:path], 'docs/index.html') %>">User guide</a> / <%= h(page[:group]) %></p>
+        <h1><%= h(page[:title]) %></h1>
+        <p class="lead"><%= h(page[:lead]) %></p>
+      </div>
+      <article class="markdown"><%= content %></article>
+      <nav class="pagination" aria-label="Adjacent pages">
+        <% if previous_page %><a href="<%= relative(page[:path], previous_page[:path]) %>"><small>Previous</small><%= h(previous_page[:title]) %></a><% end %>
+        <% if next_page %><a href="<%= relative(page[:path], next_page[:path]) %>"><small>Next</small><%= h(next_page[:title]) %></a><% end %>
+      </nav>
+    </main>
+    <aside class="toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <% headings.each do |anchor, title| %><a href="#<%= h(anchor) %>"><%= h(title) %></a><% end %>
+    </aside>
+  </div>
+  <footer class="site-footer container">
+    <p>Vanken is open source under the <a href="https://github.com/ydah/vanken/blob/main/LICENSE.txt">MIT License</a>.</p>
+    <a href="https://github.com/ydah/vanken/blob/main/<%= h(page[:source]) %>">Edit this page on GitHub</a>
+  </footer>
+</body>
+</html>
