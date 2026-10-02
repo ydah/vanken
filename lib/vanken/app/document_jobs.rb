@@ -18,7 +18,9 @@ module Vanken
           context = filter_snapshot(displayed_delta: program.fields.include?("frame.time_delta_displayed"))
           @filter = program
           @filter_context = context
-          @display = []
+          # Reserve the history's capacity before publishing matches without placeholder rows.
+          @display = Array.new(@count)
+          @display[0, @count] = []
           @progress = 0.0
           [@generation, @count, context]
         end

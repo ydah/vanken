@@ -11,6 +11,9 @@ module Vanken
     class FrameStore
       RECORD = "Q<L<L<q<S<S<Cx3"
       RECORD_SIZE = 32
+      DIRECTION_IDS = {nil => 0, in: 1, out: 2}.freeze #: Hash[Symbol?, Integer]
+      MIN_TIMESTAMP = -(1 << 63) #: Integer
+      MAX_TIMESTAMP = (1 << 63) - 1 #: Integer
       attr_reader :directory #: String
 
       # @rbs! @interfaces: Array[Hash[String, untyped]]
@@ -45,11 +48,11 @@ module Vanken
       # @rbs (Frame frame) -> Integer
       def append(frame)
         raise ArgumentError, "invalid frame lengths" unless frame.bytes.is_a?(String) && frame.original_length.is_a?(Integer) && frame.original_length.between?(frame.bytes.bytesize, 0xffff_ffff) && frame.bytes.bytesize <= 16 << 20
-        raise ArgumentError, "invalid frame metadata" unless frame.linktype.is_a?(Integer) && frame.linktype.between?(0, 0xffff) && frame.timestamp_ns.is_a?(Integer) && frame.timestamp_ns.between?(-(1 << 63), (1 << 63) - 1)
+        raise ArgumentError, "invalid frame metadata" unless frame.linktype.is_a?(Integer) && frame.linktype.between?(0, 0xffff) && frame.timestamp_ns.is_a?(Integer) && frame.timestamp_ns.between?(MIN_TIMESTAMP, MAX_TIMESTAMP)
         @mutex.synchronize do
           raise IOError, "store closed" if @closed
           interface = frame.interface ? intern_interface(frame.interface) : 0xffff
-          direction = {nil => 0, in: 1, out: 2}.fetch(frame.direction)
+          direction = DIRECTION_IDS.fetch(frame.direction)
           record = [@data.pos, frame.bytes.bytesize, frame.original_length, frame.timestamp_ns,
                     frame.linktype, interface, direction].pack(RECORD)
           @data.write(frame.bytes)

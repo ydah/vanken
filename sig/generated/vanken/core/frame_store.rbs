@@ -7,6 +7,12 @@ module Vanken
 
       RECORD_SIZE: ::Integer
 
+      DIRECTION_IDS: Hash[Symbol?, Integer]
+
+      MIN_TIMESTAMP: Integer
+
+      MAX_TIMESTAMP: Integer
+
       attr_reader directory: String
 
       @interfaces: Array[Hash[String, untyped]]
