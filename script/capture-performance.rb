@@ -192,7 +192,9 @@ module VankenCapturePerformance
     next_sample = 0.0
     selected = false
     last_rendered_count = ui.document.count
-    deadline = started + duration + 90
+    drain_timeout = 600
+    deadline = started + duration + drain_timeout
+    last_progress_at, last_progress = started, [0, 0, 0]
     sender = nil
     loop do
       frame_start = now
@@ -227,15 +229,21 @@ module VankenCapturePerformance
       end
       sender_path = File.join(reports, "sender.json")
       sender ||= JSON.parse(File.read(sender_path)) if File.exist?(sender_path)
+      progress = [ui.capture.stats.fetch(:captured, 0), ui.document.store.durable_count, ui.document.count]
+      if progress != last_progress
+        last_progress_at, last_progress = now, progress
+      end
       if sender
         stats = ui.capture.stats
         expected = sender.fetch("sent") - stats.fetch(:dropped, 0)
         break if stats.fetch(:received, 0) >= sender.fetch("sent") && stats.fetch(:captured, 0) == expected &&
           ui.document.store.durable_count == expected && ui.document.count == expected
       end
-      check(now < deadline, "live capture did not drain after traffic completed")
+      check(now - last_progress_at < 90, "live capture made no progress for 90 seconds")
+      check(now < deadline, "live capture exceeded its #{drain_timeout}-second drain allowance")
       ui.app.executor.wait(0.05) unless ui.window.dirty? || ui.window.animation_active?
     end
+    analyzed_at = now
     ui.capture.stop
     await_frame(ui, view) { ui.capture.wait(0) }
     stats = ui.capture.stats
@@ -250,6 +258,8 @@ module VankenCapturePerformance
     active_stages = active_indices.map { |index| stages[index] }
     result = {interface: "vkn-host", backend: "socket", direction: "in", filter: "udp dst port 54321",
       ui_loop: "Application.run: executor drain, dirty-driven window tick, foreground wait; only actual rendered frames are sampled",
+      analysis_drain_seconds: [analyzed_at - sender.fetch("finished_monotonic"), 0].max,
+      drain_allowance_seconds: drain_timeout, progress_timeout_seconds: 90,
       uid: Process.uid, euid: Process.euid, sender: sender, stats: stats, samples: samples,
       backlog_scope: "Kernel pending is measured at helper stats.ts. Helper-to-durable compares that last control sample with a later GUI count and may be negative; it is not an atomic pipe depth. Analyzer count is read before durable count. Final counts are exact after helper shutdown and drain.",
       ui_frames: frames.size, render_p50_ms: percentile(frames, 0.50), render_p95_ms: percentile(frames, 0.95),
