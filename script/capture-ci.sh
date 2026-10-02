@@ -30,7 +30,7 @@ cp /opt/vanken-tests/exe/vanken-capture /usr/local/libexec/vanken/helper
 cat > /usr/local/libexec/vanken/vanken-capture <<'WRAPPER'
 #!/bin/sh
 exec /usr/bin/env -i PATH=/usr/local/bin:/usr/bin:/bin \
-  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle \
+  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
   /usr/local/bin/ruby -I /usr/local/libexec/vanken/lib \
   /usr/local/libexec/vanken/helper "$@"
 WRAPPER
@@ -58,7 +58,7 @@ cleanup() {
 trap cleanup EXIT
 /opt/vanken-tests/script/netns-setup.sh
 cd /home/vanken-ci/tests
-runuser -u vanken-ci -- env VANKEN_NETNS=1 GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle \
+runuser -u vanken-ci -- env VANKEN_NETNS=1 GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
   /usr/local/bin/ruby -Ilib -S rspec spec/unit/capture spec/unit/capture_controller_spec.rb \
   spec/contract/capture_spec.rb spec/integration/capture_spec.rb spec/unit/capture_performance_spec.rb
 
@@ -68,7 +68,7 @@ capture_sender_pid=$!
 runuser -u vanken-ci -- env VANKEN_CAPTURE_REPORTS=/reports \
   "CAPTURE_DURATION=${CAPTURE_DURATION:-300}" "CAPTURE_RATE=${CAPTURE_RATE:-5000}" \
   "CAPTURE_FILE_BYTES=${CAPTURE_FILE_BYTES:-100000000}" \
-  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle \
+  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
   /usr/local/bin/ruby --yjit -Ilib script/capture-performance.rb
 wait "$capture_sender_pid"
 capture_sender_pid=

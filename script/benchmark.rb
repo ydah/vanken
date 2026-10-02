@@ -303,12 +303,12 @@ module VankenBenchmark
         check(sampled_rows > initial_rows, "complete application analysis did not advance during rendering")
         active_seconds = [incoming.finished_at, measurement_finished].min - measurement_started
         received = sampled_produced - initial_produced
-        check(received >= ((ingestion_rate * active_seconds) - 512), "complete application source missed its measured rate")
         active_times.sort!
         result[:ingestion] = {requested_frames_per_second: ingestion_rate, frames: document.count - 256,
           final_source_rows: document.count, seconds: (now - ingestion_started).round(4), active_samples: active_times.size,
           measurement_seconds: (measurement_finished - measurement_started).round(4),
           source_frames_during_sampling: received, source_frames_per_second: (received / active_seconds).round(2),
+          source_met_requested_rate: received >= ((ingestion_rate * active_seconds) - 512),
           active_scene_p95_ms: active_scene_times.sort[(active_scene_times.size * 0.95).ceil - 1].round(3),
           active_p95_ms: active_times[(active_times.size * 0.95).ceil - 1].round(3)}
       end
@@ -360,7 +360,8 @@ module VankenBenchmark
       headless_ui_p95_33ms: results[:ui][:p95_ms] <= 33,
       ui_during_5k_pps_p95_33ms: results[:ui_during_ingestion][:ingestion][:active_p95_ms] <= 33,
       application_ui_scene_p95_33ms: results[:document][:application_ui][:pipeline_p95_ms][:frame_ms] <= 33,
-      application_ui_during_5k_pps_scene_p95_33ms: results[:application_ui_during_ingestion][:ingestion][:active_scene_p95_ms] <= 33
+      application_ui_during_5k_pps_scene_p95_33ms: results[:application_ui_during_ingestion][:ingestion][:source_met_requested_rate] &&
+        results[:application_ui_during_ingestion][:ingestion][:active_scene_p95_ms] <= 33
     }
     puts JSON.pretty_generate(results)
   end
