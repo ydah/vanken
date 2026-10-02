@@ -1,0 +1,30 @@
+# Generated from lib/vanken/app/expert_info.rb with RBS::Inline
+
+module Vanken
+  module App
+    class ExpertRow < Data
+      attr_reader severity(): untyped
+
+      attr_reader code(): untyped
+
+      attr_reader protocol(): untyped
+
+      attr_reader message(): untyped
+
+      attr_reader count(): untyped
+
+      attr_reader numbers(): untyped
+
+      def self.new: (untyped severity, untyped code, untyped protocol, untyped message, untyped count, untyped numbers) -> instance
+                  | (severity: untyped, code: untyped, protocol: untyped, message: untyped, count: untyped, numbers: untyped) -> instance
+
+      def self.members: () -> [ :severity, :code, :protocol, :message, :count, :numbers ]
+
+      def members: () -> [ :severity, :code, :protocol, :message, :count, :numbers ]
+    end
+
+    module ExpertInfo
+      def self.rows: (untyped document, ?displayed_only: untyped) -> untyped
+    end
+  end
+end

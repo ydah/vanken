@@ -1,0 +1,14 @@
+# Generated from lib/vanken/config/messages.rb with RBS::Inline
+
+module Vanken
+  module Config
+    module Messages
+      EN: Hash[String, String]
+
+      JA: Hash[String, String]
+
+      # @rbs (String text, ?language: String, **untyped values) -> String
+      def self.translate: (String text, ?language: String, **untyped values) -> String
+    end
+  end
+end

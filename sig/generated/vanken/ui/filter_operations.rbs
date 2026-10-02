@@ -23,7 +23,9 @@ module Vanken
 
       def filter_from_expression: (untyped expression, ?untyped mode, ?prepare: untyped) -> untyped
 
-      def selection_menu: (untyped expression) -> untyped
+      def selection_menu: (untyped expression, ?number: untyped) -> untyped
+
+      def packet_context_menu: (untyped number) -> untyped
 
       def bookmark_filter: () -> untyped
 

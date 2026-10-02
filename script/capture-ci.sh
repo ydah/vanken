@@ -20,11 +20,11 @@ apt-get update
 apt-get install -y --no-install-recommends iproute2 iputils-ping sudo fonts-dejavu-core fonts-noto-cjk libvulkan1
 gem install --no-document redhound --version 2.0.0.rc2
 gem install --no-document rspec --version '~> 3.13'
-gem install --no-document zaniah --version '~> 0.12.3'
+gem install --no-document zaniah --version '~> 0.12.4'
 gem install --no-document fiddle --version '~> 1.1'
 
 install -d -m 0755 /opt/vanken-tests /usr/local/libexec/vanken
-cp -R /workspace/lib /workspace/spec /workspace/exe /workspace/script /workspace/.rspec /opt/vanken-tests/
+cp -R /workspace/lib /workspace/spec /workspace/exe /workspace/script /workspace/data /workspace/.rspec /opt/vanken-tests/
 cp -R /opt/vanken-tests/lib /usr/local/libexec/vanken/lib
 cp /opt/vanken-tests/exe/vanken-capture /usr/local/libexec/vanken/helper
 cat > /usr/local/libexec/vanken/vanken-capture <<'WRAPPER'

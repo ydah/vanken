@@ -1,0 +1,43 @@
+# Generated from lib/vanken/ui/navigation_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module NavigationOperations
+      def mark_packet: () -> untyped
+
+      def ignore_packet: () -> untyped
+
+      def time_reference: () -> untyped
+
+      def mark_all_displayed: () -> untyped
+
+      def unmark_all: () -> untyped
+
+      def prev_in_conversation: () -> untyped
+
+      def next_in_conversation: () -> untyped
+
+      def find_packet: () -> untyped
+
+      def search_result_dialog: () -> untyped
+
+      def find_next: () -> untyped
+
+      def find_prev: () -> untyped
+
+      def cancel_packet_search: () -> untyped
+
+      def search_packets: (untyped query, ?mode: untyped, ?target: untyped, ?direction: untyped) -> untyped
+
+      private
+
+      def repeat_packet_search: (untyped direction) -> untyped
+
+      def select_found_packet: (untyped number) -> untyped
+
+      def navigate_conversation: (untyped direction) -> untyped
+
+      def update_packet_state: (untyped operation, ?selected: untyped, ?number: untyped) -> untyped
+    end
+  end
+end

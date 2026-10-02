@@ -42,7 +42,7 @@ module Vanken
             message = program.warnings.join("\n")
           rescue Core::DisplayFilter::SyntaxError => error
             status = :error
-            message = "#{error.message} (位置 #{error.position + 1})"
+            message = t("%{message} (位置 %{position})", message: error.message, position: error.position + 1)
           end
           @app.executor.post do
             @filter_field.status(status, message: message) if generation == @filter_generation && !@closing
@@ -51,6 +51,7 @@ module Vanken
       end
 
       def apply_filter
+        cancel_packet_search
         doc = document
         return unless doc
         expression = @filter_field.value
@@ -60,7 +61,7 @@ module Vanken
         @packet_source.reset
         @window.request_frame
       rescue Core::DisplayFilter::SyntaxError => error
-        @filter_field.status(:error, message: "#{error.message} (位置 #{error.position + 1})")
+        @filter_field.status(:error, message: t("%{message} (位置 %{position})", message: error.message, position: error.position + 1))
       end
       def initial_filter(text)
         set_filter(text)
@@ -85,25 +86,51 @@ module Vanken
         set_filter(expression)
         apply_filter unless prepare
       end
-      def selection_menu(expression)
-        return Zaniah::Menu.new([]) unless expression
-        %i[filter prepare].each do |kind|
-          %i[selected not and and_not or or_not].each do |mode|
-            name = :"#{kind}_#{mode}"
-            @app.actions.register(:"context_#{name}", title: @app.actions.command(name).title) do
-              filter_from_expression(expression, mode, prepare: kind == :prepare)
+      def selection_menu(expression, number: selected_number)
+        filters = Zaniah::Menu.new([])
+        if expression
+          %i[filter prepare].each do |kind|
+            %i[selected not and and_not or or_not].each do |mode|
+              name = :"#{kind}_#{mode}"
+              @app.actions.register(:"context_#{name}", title: @app.actions.command(name).title) do
+                filter_from_expression(expression, mode, prepare: kind == :prepare)
+              end
             end
           end
+          @app.actions.register(:context_copy_filter, title: t("フィルタとしてコピー")) { copy_text(expression) }
+          ui = self
+          filters = Zaniah::Menu.build do
+            submenu(ui.t("フィルタとして適用")) { %i[selected not and and_not or or_not].each { |mode| item(:"context_filter_#{mode}") } }
+            submenu(ui.t("フィルタを準備")) { %i[selected not and and_not or or_not].each { |mode| item(:"context_prepare_#{mode}") } }
+            item(:context_copy_filter)
+          end
         end
-        @app.actions.register(:context_copy_filter, title: "フィルタとしてコピー") { copy_text(expression) }
+        Zaniah::Menu.new(filters.items + packet_context_menu(number).items)
+      end
+
+      def packet_context_menu(number)
+        doc = document
+        return Zaniah::Menu.new([]) unless doc && number.is_a?(Integer) && number.between?(1, doc.count)
+        enabled = ->(*) { document.equal?(doc) }
+        {
+          context_mark_packet: [:marked, :toggle_mark, "マーク", "マークを解除"],
+          context_ignore_packet: [:ignored, :toggle_ignore, "無視", "無視を解除"],
+          context_time_reference: [:time_references, :toggle_time_reference, "時刻基準にする", "時刻基準を解除"]
+        }.each do |action, (state, operation, label, clear_label)|
+          @app.actions.register(action, title: t(doc.public_send(state).include?(number) ? clear_label : label), enabled: enabled) do
+            update_packet_state(operation, number: number) if enabled.call
+          end
+        end
+        stream_enabled = ->(*) { enabled.call && doc.annotations[number][:tcp_stream] >= 0 }
+        @app.actions.register(:context_follow_tcp_stream, title: t("TCP ストリームを追跡"), enabled: stream_enabled) do
+          follow_tcp_stream(doc.annotations[number][:tcp_stream]) if stream_enabled.call
+        end
         Zaniah::Menu.build do
-          submenu("フィルタとして適用") { %i[selected not and and_not or or_not].each { |mode| item(:"context_filter_#{mode}") } }
-          submenu("フィルタを準備") { %i[selected not and and_not or or_not].each { |mode| item(:"context_prepare_#{mode}") } }
-          item(:context_copy_filter)
+          %i[context_mark_packet context_ignore_packet context_time_reference context_follow_tcp_stream].each { |action| item(action) }
         end
       end
       def bookmark_filter
-        path_dialog("フィルタの名前") do |name|
+        path_dialog(t("フィルタの名前")) do |name|
           @preferences.bookmark(name, @filter_field.value) unless name.empty?
           dismiss_dialog
         end
@@ -113,7 +140,8 @@ module Vanken
         content = Zaniah::Div.new.flex_col.gap(4).children(items.first(60).map do |label, expression|
           Zaniah::UI::Button.new(label, variant: :ghost).on_click { set_filter(expression); apply_filter; dismiss_dialog }
         end)
-        show_dialog(:history, "表示フィルタ", content)
+        content.child(Zaniah::UI::Label.new(t("フィルタ履歴はまだありません。"), tone: :muted)) if items.empty?
+        show_dialog(:history, t("表示フィルタ"), content, reopen: -> { filter_history })
       end
     end
   end

@@ -5,6 +5,8 @@ module Vanken
     module FileOperations
       CAPTURE_FILTERS: untyped
 
+      def capture_filters: () -> untyped
+
       def open_dialog: () -> untyped
 
       def open_file: (untyped path) -> untyped

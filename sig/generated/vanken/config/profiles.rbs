@@ -1,0 +1,29 @@
+# Generated from lib/vanken/config/profiles.rb with RBS::Inline
+
+module Vanken
+  module Config
+    class Profiles
+      FILES: untyped
+
+      attr_reader directory: untyped
+
+      attr_reader active: untyped
+
+      def initialize: (?directory: untyped) -> untyped
+
+      def names: () -> untyped
+
+      def preferences: () -> untyped
+
+      def create: (untyped name, ?copy_from: untyped) -> untyped
+
+      def switch: (untyped name) -> untyped
+
+      def delete: (untyped name) -> untyped
+
+      private
+
+      def profile_directory: (untyped name) -> untyped
+    end
+  end
+end

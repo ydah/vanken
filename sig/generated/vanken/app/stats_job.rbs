@@ -1,0 +1,18 @@
+# Generated from lib/vanken/app/stats_job.rb with RBS::Inline
+
+module Vanken
+  module App
+    # Invoke refresh on the executor; cancel joins its current frame before store close.
+    class StatsJob
+      def initialize: (untyped document, ?specs: untyped, ?displayed_only: untyped) -> untyped
+
+      def refresh: () -> untyped
+
+      def cancel: () -> untyped
+
+      private
+
+      def reset: () -> untyped
+    end
+  end
+end

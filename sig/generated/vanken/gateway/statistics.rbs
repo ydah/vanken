@@ -1,0 +1,104 @@
+# Generated from lib/vanken/gateway/statistics.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class HierarchyRow < Data
+      attr_reader path(): Array[Symbol]
+
+      attr_reader packets(): Integer
+
+      attr_reader bytes(): Integer
+
+      def self.new: (Array[Symbol] path, Integer packets, Integer bytes) -> instance
+                  | (path: Array[Symbol], packets: Integer, bytes: Integer) -> instance
+
+      def self.members: () -> [ :path, :packets, :bytes ]
+
+      def members: () -> [ :path, :packets, :bytes ]
+    end
+
+    class ConversationRow < Data
+      attr_reader addr_a(): String
+
+      attr_reader port_a(): Integer
+
+      attr_reader addr_b(): String
+
+      attr_reader port_b(): Integer
+
+      attr_reader packets_ab(): Integer
+
+      attr_reader packets_ba(): Integer
+
+      attr_reader bytes_ab(): Integer
+
+      attr_reader bytes_ba(): Integer
+
+      attr_reader start_ns(): Integer
+
+      attr_reader end_ns(): Integer
+
+      attr_reader duration_ns(): Integer
+
+      def self.new: (String addr_a, Integer port_a, String addr_b, Integer port_b, Integer packets_ab, Integer packets_ba, Integer bytes_ab, Integer bytes_ba, Integer start_ns, Integer end_ns, Integer duration_ns) -> instance
+                  | (addr_a: String, port_a: Integer, addr_b: String, port_b: Integer, packets_ab: Integer, packets_ba: Integer, bytes_ab: Integer, bytes_ba: Integer, start_ns: Integer, end_ns: Integer, duration_ns: Integer) -> instance
+
+      def self.members: () -> [ :addr_a, :port_a, :addr_b, :port_b, :packets_ab, :packets_ba, :bytes_ab, :bytes_ba, :start_ns, :end_ns, :duration_ns ]
+
+      def members: () -> [ :addr_a, :port_a, :addr_b, :port_b, :packets_ab, :packets_ba, :bytes_ab, :bytes_ba, :start_ns, :end_ns, :duration_ns ]
+    end
+
+    class EndpointRow < Data
+      attr_reader address(): String
+
+      attr_reader port(): Integer
+
+      attr_reader packets_tx(): Integer
+
+      attr_reader packets_rx(): Integer
+
+      attr_reader bytes_tx(): Integer
+
+      attr_reader bytes_rx(): Integer
+
+      def self.new: (String address, Integer port, Integer packets_tx, Integer packets_rx, Integer bytes_tx, Integer bytes_rx) -> instance
+                  | (address: String, port: Integer, packets_tx: Integer, packets_rx: Integer, bytes_tx: Integer, bytes_rx: Integer) -> instance
+
+      def self.members: () -> [ :address, :port, :packets_tx, :packets_rx, :bytes_tx, :bytes_rx ]
+
+      def members: () -> [ :address, :port, :packets_tx, :packets_rx, :bytes_tx, :bytes_rx ]
+    end
+
+    class StatisticsTable < Data
+      attr_reader kind(): Symbol
+
+      attr_reader type(): Symbol?
+
+      attr_reader rows(): Array[HierarchyRow | ConversationRow | EndpointRow]
+
+      attr_reader evicted(): Integer
+
+      def self.new: (Symbol kind, Symbol? type, Array[HierarchyRow | ConversationRow | EndpointRow] rows, Integer evicted) -> instance
+                  | (kind: Symbol, type: Symbol?, rows: Array[HierarchyRow | ConversationRow | EndpointRow], evicted: Integer) -> instance
+
+      def self.members: () -> [ :kind, :type, :rows, :evicted ]
+
+      def members: () -> [ :kind, :type, :rows, :evicted ]
+    end
+
+    # The upstream session and its private table schema stay inside the Gateway.
+    class Statistics
+      # @rbs (?specs: Array[String], ?registry: Redhound::Registry, **untyped options) -> void
+      def initialize: (?specs: Array[String], ?registry: Redhound::Registry, **untyped options) -> void
+
+      # @rbs (PacketView packet) -> void
+      def update: (PacketView packet) -> void
+
+      # @rbs () -> Array[StatisticsTable]
+      def tables: () -> Array[StatisticsTable]
+
+      # @rbs () -> void
+      def close: () -> void
+    end
+  end
+end

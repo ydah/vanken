@@ -22,12 +22,34 @@ module Vanken
       def initialize(output, format: :pcapng, **options)
         @format = format.to_sym
         @interfaces = {} #: Hash[Hash[String, untyped], Redhound::Capture::Interface]
-        if output.is_a?(String)
+        rotating = options[:max_bytes] || options[:interval]
+        if rotating
+          raise ArgumentError, "ring output must be a fixed file path" unless output.is_a?(String) && output != "-" && !output.include?("%")
+          count = options.fetch(:file_count, 10)
+          raise ArgumentError, "ring file count must be between 1 and 1000" unless count.is_a?(Integer) && count.between?(1, 1000)
+          %i[max_bytes interval].each do |key|
+            value = options[key]
+            raise ArgumentError, "#{key} must be positive" if value && (!value.is_a?(Numeric) || !value.finite? || !value.positive?)
+          end
+          options = options.merge(file_count: count)
+          # The public Writer cycles slots when max_bytes is present, also for time-based rings.
+          options[:max_bytes] ||= 9_223_372_036_854_775_807
+          extension = File.extname(output)
+          stem = output.delete_suffix(extension)
+          count.times do |index|
+            path = "#{stem}_#{format('%05d', index)}#{extension}"
+            next unless File.exist?(path) || File.symlink?(path)
+            File.open(path, File::RDWR | File::NOFOLLOW) do |file|
+              raise ArgumentError, "ring output must be a regular, unlinked file owned by this user" unless file.stat.file? && file.stat.nlink == 1 && file.stat.uid == Process.uid
+              file.chmod(0o600)
+            end
+          end
+        elsif output.is_a?(String)
           @owned = File.open(output, "wb", 0o600)
           @owned.chmod(0o600)
         end
         @writer = Redhound::Writer.open(@owned || output, format: @format, **options)
-      rescue Redhound::Error, IOError, SystemCallError => error
+      rescue Redhound::Error, ArgumentError, IOError, SystemCallError => error
         @owned&.close
         raise Vanken::FileError, error.message
       end
@@ -45,6 +67,8 @@ module Vanken
       end
       # @rbs () -> void
       def flush = @writer.flush
+      # @rbs () -> Integer
+      def bytes_written = @writer.bytes_written
       # @rbs (Redhound::Capture::Stats | Hash[Symbol | String, Integer] stats, ?interface: Redhound::Capture::Interface?) -> void
       def write_stats(stats, interface: nil)
         if stats.is_a?(Hash)

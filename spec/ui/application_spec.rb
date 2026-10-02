@@ -21,6 +21,7 @@ RSpec.describe "Packet inspection window" do
   before do
     @directory = Dir.mktmpdir
     preferences = Vanken::Config::Preferences.new(directory: @directory)
+    preferences.set("appearance.language", "ja")
     preferences.set("layout.width", 640)
     preferences.set("layout.height", 400)
     @ui = Vanken::UI::Application.new(backend: :headless, preferences: preferences)
@@ -47,13 +48,13 @@ RSpec.describe "Packet inspection window" do
     ttl = @ui.detail_nodes.flat_map(&:descendants).find { |node| node.field == "ip.ttl" }
     @ui.select_detail(ttl)
     expect(@ui.hex.highlights).to include(range: 22...23, tone: :primary)
-    expect(@ui.selection_menu(ttl.filter).items.size).to eq(3)
+    expect(@ui.selection_menu(ttl.filter).items.map(&:action)).to include(:context_copy_filter, :context_mark_packet, :context_ignore_packet, :context_time_reference, :context_follow_tcp_stream)
     @ui.app.actions.call(:context_prepare_not)
     expect(@ui.filter_field.value).to eq("!(#{ttl.filter})")
     @ui.hex.select(22...23)
     expect(@ui.selected_node.field).to eq("ip.ttl")
     @ui.table.select(1)
-    settle { @ui.selected_number == 2 }
+    settle { @ui.selected_number == 2 && !@ui.detail_nodes.empty? }
     expect(@ui.tree.expanded).to include("ipv4")
     expect(Zaniah::Inspection.snapshot(@ui.window).find(test_id: "vk.packet_bytes")).not_to be_nil
   end

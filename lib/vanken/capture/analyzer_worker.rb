@@ -57,11 +57,11 @@ module Vanken
 
       def initialize(request)
         @reader = Reader.new(request.fetch(:spool))
-        @dissector = Gateway::Dissector.new(verify_checksums: request.fetch(:verify_checksums))
+        @dissector = Gateway::Dissector.new(**request.fetch(:gateway_options, {verify_checksums: request.fetch(:verify_checksums)}))
         @analysis = Gateway::Analysis.new(registry: @dissector.registry, **request.fetch(:analysis_options))
         @columns = Core::ColumnStore.new
         @annotations = Core::AnnotationStore.new(request.fetch(:spool), persist: false)
-        @catalog = Gateway::FieldCatalog.new
+        @catalog = Gateway::FieldCatalog.new(registry: @dissector.registry)
         @seen_fields = @catalog.names.to_set
         @context = Context.new(@reader)
         @next = 1

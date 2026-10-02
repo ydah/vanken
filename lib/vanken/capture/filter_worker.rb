@@ -8,6 +8,7 @@ require_relative "../core/frame_store"
 require_relative "../core/stores"
 require_relative "../core/display_filter/compiler"
 require_relative "../gateway/dissector"
+require_relative "../gateway/display_capture_filter"
 
 module Vanken
   module Capture
@@ -153,12 +154,17 @@ module Vanken
         raise ArgumentError, "filter chunk exceeds stored frames" unless last <= reader.count + 1
 
         dissector = Gateway::Dissector.new(decode_as: payload.fetch("decode_as", []), plugins: payload.fetch("plugins", []))
-        program = Core::DisplayFilter.compile(payload.fetch("expr"), catalog: Gateway::FieldCatalog.new)
+        program = Core::DisplayFilter.compile(payload.fetch("expr"), catalog: Gateway::FieldCatalog.new(registry: dissector.registry))
+        capture = Gateway::DisplayCaptureFilter.new(payload.fetch("expr")) if payload.fetch("plugins", []).empty? && payload.fetch("decode_as", []).empty?
+        capture = nil unless capture&.expression
         context = {marked: Set.new(payload.fetch("marked", [])), ignored: Set.new(payload.fetch("ignored", [])),
                    reference: payload.fetch("time_reference_ns") { reader.count.zero? ? 0 : reader.metadata(1)[:timestamp_ns] },
                    references: payload.fetch("time_references_ns", {}).map { |number, timestamp| [Integer(number), timestamp] }.sort_by(&:first),
                    predecessors: payload.fetch("displayed_predecessors", {})}
-        matches = (first...last).select { |number| program.match?(View.new(reader, number, dissector, context)) }
+        matches = (first...last).select do |number|
+          matched = capture&.match(reader.frame(number))
+          matched.nil? ? program.match?(View.new(reader, number, dissector, context)) : matched
+        end
         {"matches" => matches}
       ensure
         reader&.close

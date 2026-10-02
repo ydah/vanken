@@ -8,6 +8,10 @@ module Vanken
         return unless doc && number.is_a?(Integer) && number.between?(1, doc.count)
         @selection_generation += 1
         generation = @selection_generation
+        expanded = @pending_tree_expansion ||= @tree.expanded.dup
+        update { |state| state.merge!(number: number, node: nil, details: [], bytes: "".b) }
+        @tree.replace([])
+        @hex.bytes = "".b
         @app.executor.background do
           nodes = doc.details(number)
           bytes = doc.store.read(number).bytes
@@ -15,6 +19,8 @@ module Vanken
             next unless generation == @selection_generation && document.equal?(doc)
             update { |state| state.merge!(number: number, node: nil, details: nodes, bytes: bytes) }
             @tree.replace(nodes)
+            expanded.each { |id| @tree.expand(id) }
+            @pending_tree_expansion = nil
             @hex.bytes = bytes
           end
         rescue StandardError => error
@@ -65,10 +71,10 @@ module Vanken
         @table.scroll_to(document.displayed_count - 1)
       end
       def go_to_packet
-        path_dialog("パケットへ移動") do |value|
+        path_dialog(t("パケットへ移動")) do |value|
           number = Integer(value, 10)
           index = document&.display_numbers&.index(number)
-          raise Vanken::Error, "指定したパケットは表示されていません" unless index
+          raise Vanken::Error, t("指定したパケットは表示されていません") unless index
           @table.select(index)
           @table.scroll_to(index, align: :center)
           dismiss_dialog

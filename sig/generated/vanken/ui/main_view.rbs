@@ -5,17 +5,29 @@ module Vanken
     class MainView < Zaniah::UI::Component
       COLUMNS: untyped
 
+      class ExpertBadge < Zaniah::UI::Badge
+        def initialize: (untyped label, variant: untyped) ?{ (?) -> untyped } -> untyped
+
+        def build: (untyped cx) -> untyped
+
+        def accessibility_node: (untyped _cx) -> untyped
+
+        def accessibility_action: (untyped _node, untyped action) -> untyped
+      end
+
       def initialize: (untyped ui) -> untyped
 
       def build: (untyped cx) -> untyped
 
       private
 
+      def text: (untyped value) -> untyped
+
       def pane: (untyped title, untyped body) -> untyped
 
-      def button: (untyped label, untyped id, ?disabled: untyped) ?{ (?) -> untyped } -> untyped
+      def button: (untyped label, untyped id, ?disabled: untyped, ?size: untyped, ?variant: untyped) ?{ (?) -> untyped } -> untyped
 
-      def welcome: (untyped _cx) -> untyped
+      def welcome: (untyped cx) -> untyped
     end
   end
 end

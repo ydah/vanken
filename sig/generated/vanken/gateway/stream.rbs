@@ -1,0 +1,75 @@
+# Generated from lib/vanken/gateway/stream.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class StreamChunk < Data
+      attr_reader direction(): Integer
+
+      attr_reader bytes(): String
+
+      attr_reader missing(): Integer
+
+      attr_reader number(): Integer
+
+      attr_reader sequence(): Integer
+
+      def self.new: (Integer direction, String bytes, Integer missing, Integer number, Integer sequence) -> instance
+                  | (direction: Integer, bytes: String, missing: Integer, number: Integer, sequence: Integer) -> instance
+
+      def self.members: () -> [ :direction, :bytes, :missing, :number, :sequence ]
+
+      def members: () -> [ :direction, :bytes, :missing, :number, :sequence ]
+    end
+
+    class StreamText < Data
+      attr_reader direction(): Integer
+
+      attr_reader text(): String
+
+      def self.new: (Integer direction, String text) -> instance
+                  | (direction: Integer, text: String) -> instance
+
+      def self.members: () -> [ :direction, :text ]
+
+      def members: () -> [ :direction, :text ]
+    end
+
+    class Stream
+      DISPLAY_LIMIT: Integer
+
+      SEQUENCE_MOD: Integer
+
+      attr_reader nodes: Array[String]
+
+      attr_reader chunks: Array[StreamChunk]
+
+      attr_reader stream_id: Integer
+
+      # @rbs (untyped document, Integer stream_id, ?cancelled: (^() -> bool)?) -> void
+      def initialize: (untyped document, Integer stream_id, ?cancelled: (^() -> bool)?) -> void
+
+      # @rbs (?direction: Integer?) -> Integer
+      def byte_size: (?direction: Integer?) -> Integer
+
+      # @rbs (?format: Symbol, ?direction: Integer?, ?limit: Integer) -> Array[StreamText]
+      def preview: (?format: Symbol, ?direction: Integer?, ?limit: Integer) -> Array[StreamText]
+
+      # @rbs (String path, ?format: Symbol, ?direction: Integer?, ?cancelled: (^() -> bool)?) -> String
+      def save: (String path, ?format: Symbol, ?direction: Integer?, ?cancelled: (^() -> bool)?) -> String
+
+      private
+
+      # @rbs (Integer? direction) -> Array[StreamChunk]
+      def selected: (Integer? direction) -> Array[StreamChunk]
+
+      def endpoint: (untyped address, untyped port) -> untyped
+
+      def validate: (untyped format, untyped direction) -> untyped
+
+      def render: (untyped chunk, untyped bytes, untyped format) -> untyped
+
+      # Keep capture arrival precedence while inserting only previously unseen ranges.
+      def insert: (untyped segments, untyped chunk) -> untyped
+    end
+  end
+end

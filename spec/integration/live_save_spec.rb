@@ -6,6 +6,27 @@ require "timeout"
 require_relative "../support/packets"
 
 RSpec.describe "Saving an active acquisition" do
+  it "saves every durable raw packet even when analysis fails before publishing any rows" do
+    store = Vanken::Core::FrameStore.new
+    3.times { |index| store.append(frame(number: index + 1)) }
+    store.flush
+    document = Vanken::App::Document.new(store: store)
+    document.fail(Vanken::Error.new("analysis failed"))
+    expect(document.count).to eq(0)
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "recovered.pcapng")
+      document.save(path).wait_for_save(2)
+      reader = Vanken::Gateway::FileReader.new(path)
+      frames = []
+      frames << reader.next_frame until reader.eof?
+      expect(frames.compact.map(&:bytes)).to eq([frame.bytes] * 3)
+      reader.close
+      expect(document.error).to be_nil
+    end
+  ensure
+    document&.close
+  end
+
   it "waits for the save without waiting for acquisition EOF" do
     source = Class.new do
       def initialize(frame) = @frame = frame

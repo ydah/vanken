@@ -9,27 +9,36 @@ require_relative "../capture/receiver"
 require_relative "../capture/analyzer"
 require_relative "../capture/analyzer_process"
 require_relative "document_jobs"
+require_relative "../config/analysis_settings"
+require_relative "document_analysis"
+require_relative "navigation"
+require_relative "../config/columns"
 
 module Vanken
   module App
     class Document
       include DocumentJobs
+      include DocumentAnalysis
+      include Navigation
       attr_reader :store, :columns, :annotations, :error, :path, :source, :progress, :filter,
-                  :marked, :ignored, :time_references, :catalog, :analysis_options
+                  :marked, :ignored, :time_references, :catalog, :analysis_options, :analysis_gateway_options
       attr_accessor :frame_latency, :scanner
 
-      def initialize(on_update: nil, preferences: nil, store: nil, scanner: nil, process_analysis: true)
+      def initialize(on_update: nil, preferences: nil, store: nil, scanner: nil, process_analysis: true, decode_as: nil, plugins: nil)
+        @verify_checksums = preferences&.get("analysis.verify_checksums") || false
+        settings = preferences && Config::AnalysisSettings.new(directory: preferences.directory)
+        @analysis_gateway_options = {verify_checksums: @verify_checksums, decode_as: decode_as || settings&.decode_as || [], plugins: plugins || settings&.plugins || []}.freeze
+        @dissector = Gateway::Dissector.new(**@analysis_gateway_options)
         @store = store || Core::FrameStore.new
         @columns = Core::ColumnStore.new
         @annotations = Core::AnnotationStore.new(@store.directory)
         @cache = Core::RowCache.new(limit: preferences&.get("packet_list.row_cache_rows") || 20_000)
-        @verify_checksums = preferences&.get("analysis.verify_checksums") || false
-        @dissector = Gateway::Dissector.new(verify_checksums: @verify_checksums)
         @process_analysis = process_analysis
         @analysis_options = {max_state_bytes: (preferences&.get("analysis.max_state_mib") || 256) << 20,
                              max_flows: preferences&.get("analysis.max_flows") || 100_000}.freeze
-        @catalog = Gateway::FieldCatalog.new
+        @catalog = Gateway::FieldCatalog.new(registry: @dissector.registry)
         @mutex, @condition = Mutex.new, ConditionVariable.new
+        @close_mutex = Mutex.new
         @jobs, @count, @generation = [], 0, 0
         @display = nil
         @marked, @ignored, @time_references = Set.new, Set.new, Set.new
@@ -38,15 +47,7 @@ module Vanken
         @scanner = scanner
         @scan_concurrency = preferences&.get("analysis.workers") || 4
         @filter_tasks = []
-        @details = File.open(File.join(@store.directory, "details.jsonl"), "w+b", 0o600)
-        @detail_reader = File.open(File.join(@store.directory, "details.jsonl"), "rb")
-        @detail_index = File.open(File.join(@store.directory, "reassembled.idx"), "w+b", 0o600)
-        @detail_offsets = {}
-        @summaries = File.open(File.join(@store.directory, "summaries.bin"), "w+b", 0o600)
-        @summary_index = File.open(File.join(@store.directory, "summaries.idx"), "w+b", 0o600)
-        @summary_reader = File.open(File.join(@store.directory, "summaries.bin"), "rb")
-        @summary_index_reader = File.open(File.join(@store.directory, "summaries.idx"), "rb")
-        @summary_count = 0
+        open_analysis_files
         @frame_latency = 0.0
       end
 
@@ -75,12 +76,18 @@ module Vanken
       def displayed_count = @mutex.synchronize { @display ? @display.size : @count }
       def number_at(index) = @mutex.synchronize { @display ? @display.fetch(index) : (index + 1).tap { |number| raise IndexError unless number.between?(1, @count) } }
       def display_numbers = @mutex.synchronize { @display ? @display.dup : (1..@count).to_a }
-      def dirty? = @dirty
+      def dirty? = @dirty || (@source == :live && @store.count > (@saved_count || 0))
       def loading? = !@analyzed && !@cancelled
       def cancelled? = @cancelled
       def received? = @received
       def complete? = @analyzed
       def closing? = !!@closing
+      def analysis_stopped? = closing? || !!@reanalysis_cancelled
+      def capture_stats
+        value = @reader.respond_to?(:stats) && @reader.stats
+        value.respond_to?(:to_h) ? value.to_h : {}
+      end
+      def expert_summary = @mutex.synchronize { {count: @annotations.expert_count, severity: @annotations.expert_max} }
       def stream_frames(stream) = @mutex.synchronize { @annotations.streams[stream].dup }
       def packet(number) = @dissector.dissect(@store.read(number))
       # @rbs (Integer number) -> Gateway::PacketSnapshot?
@@ -93,7 +100,33 @@ module Vanken
         base = @mutex.synchronize { @columns[number] }
         frame = @store.metadata(number)
         info = @cache.fetch(number) { persisted_summary(number) || persisted_details(number)&.fetch("info", nil) || packet(number).info }
-        base.merge(no: number, number: number, timestamp_ns: frame[:timestamp_ns], length: frame[:original_length], info: info)
+        base.merge(no: number, number: number, timestamp_ns: frame[:timestamp_ns], length: frame[:original_length], info: info).merge(custom_row(number))
+      end
+      def custom_columns = @custom_columns || []
+      def custom_columns=(columns)
+        raise Vanken::ConfigError, "invalid custom columns" unless columns.is_a?(Array) && columns.size <= 64 && columns.all? do |item|
+          item.is_a?(Hash) && Config::Columns.valid_field?(item["field"]) && item["key"] == "field:#{item['field']}" && [true, false].include?(item["visible"])
+        end
+        saved = columns.map { |item| item.slice("key", "field", "visible").transform_values { |value| value.is_a?(String) ? value.dup.freeze : value }.freeze }.freeze
+        @mutex.synchronize do
+          unless saved == @custom_columns
+            @custom_columns = saved
+            @sort_generation = (@sort_generation || 0) + 1
+          end
+        end
+      end
+      def custom_row(number)
+        fields = custom_columns.select { |item| item["visible"] }
+        return {} if fields.empty?
+        packet = view(number)
+        resolver = Core::DisplayFilter::FieldResolver.new(@catalog)
+        fields.to_h do |item|
+          field = item.fetch("field")
+          [item.fetch("key").to_sym, Config::Columns.display(packet.values(field), type: resolver.resolve(field).type)]
+        end
+      end
+      def custom_sort_value(number, field)
+        Config::Columns.sort_value(view(number).values(field).first, type: Core::DisplayFilter::FieldResolver.new(@catalog).resolve(field).type)
       end
       def details(number)
         saved = persisted_details(number)
@@ -112,7 +145,7 @@ module Vanken
             program, generation, snapshot = @mutex.synchronize { [@filter, @generation, @filter_context] }
             matched = !program || program.match?(view(number, packet: packet, snapshot: snapshot))
             committed = @mutex.synchronize do
-              next false if generation != @generation
+              next false if generation != @generation || !snapshot.equal?(@filter_context)
               committing = true
               @columns.append(columns)
               @annotations.append(number, annotation)
@@ -123,8 +156,8 @@ module Vanken
                 @detail_index.write([number, @detail_offsets[number]].pack("Q<Q<"))
                 @detail_index.flush
               end
+              record_live_predecessors(number, number, matched ? [number] : [], context: snapshot)
               @count = number
-              @dirty = true if @source == :live
               @display << number if @display && matched
               true
             end
@@ -142,6 +175,7 @@ module Vanken
           @columns.append(source: "", destination: "", protocol: "Malformed", src_port: -1, dst_port: -1, ip_proto: -1, layers: [])
           @annotations.append(number, tcp_stream: -1, seq_rel: -1, ack_rel: -1, analysis_flags: [], expert_max: 3,
             expert_items: [{severity: :error, code: "vanken.internal_error", protocol: "vanken", message: error.message}], extra: {})
+          record_live_predecessors(number, number, [])
           @count = number
           @display << number if @display && !@filter
         end
@@ -149,14 +183,20 @@ module Vanken
       end
       # Only immutable context for this unpublished range crosses the worker pipe.
       def analysis_configuration(first, last)
+        raise Vanken::Error, "invalid analysis range" unless first.is_a?(Integer) && last.is_a?(Integer) && first.positive? && (last - first + 1).between?(1, 256)
         @mutex.synchronize do
           historical = !!@filter_context
           current = @filter_context || {marked: @marked, ignored: @ignored, references: @time_references,
             predecessors: nil, limit: @count, last_displayed: @display ? @display.last : @count}
-          snapshot = current.merge(marked: current[:marked].select { |n| n.between?(first, last) }.to_set,
+          predecessors = if current[:live_predecessors]
+            (first..last).to_h { |number| [number, displayed_predecessor(number, current)] }
+          else
+            current[:predecessors]&.slice(*(first..last).to_a)
+          end
+          snapshot = current.except(:live_predecessors, :live_predecessor_start).merge(marked: current[:marked].select { |n| n.between?(first, last) }.to_set,
             ignored: current[:ignored].select { |n| n.between?(first, last) }.to_set,
-            references: current[:references].dup, predecessors: nil,
-            unfiltered_predecessor: historical && current[:predecessors].nil?)
+            references: current[:references].dup, predecessors: predecessors,
+            unfiltered_predecessor: historical && current[:predecessors].nil? && !current[:live_predecessors])
           {expression: @filter&.expression || "", generation: @generation, snapshot: snapshot,
            historical_context: historical, context_token: @filter_context&.object_id}
         end
@@ -185,8 +225,8 @@ module Vanken
             @summary_index.write(offsets)
             [@annotations, @details, @detail_index, @summaries, @summary_index].each(&:flush)
             @catalog.merge(batch[:fields])
+            record_live_predecessors(first, last, batch[:matches])
             @summary_count = @count = last
-            @dirty = true if @source == :live
             @display.concat(batch[:matches]) if @display
             true
           end
@@ -199,7 +239,18 @@ module Vanken
         notify
       end
       def receiving_done = (@received = true; signal)
-      def analyzing_done = (@annotations.flush; @analyzed = true; notify(force: true))
+      def analyzing_done
+        @annotations.flush
+        @mutex.synchronize do
+          @filter_context = nil if @reanalysis_context && @filter_context.equal?(@reanalysis_context)
+          @reanalysis_context = nil
+          @rebuilding_filter_basis = nil
+          @rebuilding = false
+          @reanalysis_cancelled = false
+          @analyzed = true
+        end
+        notify(force: true)
+      end
       def signal = @mutex.synchronize { @condition.broadcast }
       def wait_for_frames = @mutex.synchronize { @condition.wait(@mutex, 0.05) }
       def fail(error) = (@error = error; notify(force: true))
@@ -227,6 +278,15 @@ module Vanken
         signal
         self
       end
+      def cancel_reanalysis
+        @mutex.synchronize do
+          if @rebuilding
+            @reanalysis_cancelled = true
+            @condition.broadcast
+          end
+        end
+        self
+      end
       def wait(timeout = nil)
         deadline = timeout && (Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout)
         @jobs.each do |job|
@@ -237,22 +297,25 @@ module Vanken
         self
       end
       def close
-        return self if @closed
-        @closing = true
-        cancel
-        cancel_scan
-        wait(3)
-        @annotations.close
-        @details.close
-        @detail_reader.close
-        @detail_index.close
-        @summaries.close
-        @summary_index.close
-        @summary_reader.close
-        @summary_index_reader.close
-        @store.close
-        @closed = true
-        self
+        @close_mutex.synchronize do
+          return self if @closed
+          @closing = true
+          cancel_search
+          cancel
+          cancel_scan
+          wait(3)
+          @annotations.close
+          @details.close
+          @detail_reader.close
+          @detail_index.close
+          @summaries.close
+          @summary_index.close
+          @summary_reader.close
+          @summary_index_reader.close
+          @store.close
+          @closed = true
+          self
+        end
       end
 
       private

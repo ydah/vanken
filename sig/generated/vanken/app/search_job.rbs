@@ -1,0 +1,21 @@
+# Generated from lib/vanken/app/search_job.rb with RBS::Inline
+
+module Vanken
+  module App
+    class SearchJob
+      attr_reader program: untyped
+
+      def initialize: (untyped document, untyped query, ?mode: untyped, ?target: untyped, ?from: untyped, ?direction: untyped) -> untyped
+
+      def cancel: () -> untyped
+
+      def cancelled?: () -> untyped
+
+      def run: (?snapshot: untyped) -> untyped
+
+      private
+
+      def search_text: (untyped number) -> untyped
+    end
+  end
+end

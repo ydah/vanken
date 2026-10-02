@@ -68,6 +68,10 @@ module Vanken
 
       attr_reader experts: Hash[Integer, Array[Hash[Symbol, untyped]]]
 
+      attr_reader expert_count: Integer
+
+      attr_reader expert_max: Integer
+
       # @rbs! @extra: Hash[Integer, Hash[String, untyped]]
       # @rbs! @io: File?
       # @rbs (String directory, ?persist: bool) -> void

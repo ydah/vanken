@@ -1,0 +1,37 @@
+# Generated from lib/vanken/config/columns.rb with RBS::Inline
+
+module Vanken
+  module Config
+    class Columns
+      BUILTINS: untyped
+
+      def self.load: (directory: untyped, ?legacy: untyped) -> untyped
+
+      def initialize: (?untyped payload) -> untyped
+
+      def replace: (untyped payload) -> untyped
+
+      def self.valid_field?: (untyped field) -> untyped
+
+      def to_h: () -> untyped
+
+      def custom: () -> untyped
+
+      def table_columns: () -> untyped
+
+      def add: (untyped field, ?label: untyped, ?width: untyped) -> untyped
+
+      def remove: (untyped key) -> untyped
+
+      def move: (untyped key, untyped index) -> untyped
+
+      def update_layout: (untyped items) -> untyped
+
+      def save: (untyped directory) -> untyped
+
+      def self.display: (untyped values, ?type: untyped) -> untyped
+
+      def self.sort_value: (untyped value, ?type: untyped) -> untyped
+    end
+  end
+end

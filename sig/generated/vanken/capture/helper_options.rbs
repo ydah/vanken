@@ -13,6 +13,12 @@ module Vanken
 
       attr_reader flush_interval: untyped
 
+      attr_reader stop_count: untyped
+
+      attr_reader stop_duration: untyped
+
+      attr_reader stop_bytes: untyped
+
       def self.parse: (untyped argv) -> untyped
 
       def initialize: () -> untyped

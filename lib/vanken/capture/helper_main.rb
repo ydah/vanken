@@ -23,7 +23,7 @@ module Vanken
         when :list_interfaces then @stdout.puts(JSON.generate(Gateway::Interfaces.list)); return 0
         when :check then return check(options)
         when :version then @stdout.puts("Vanken #{VERSION}"); return 0
-        when :help then @stdout.puts("vanken-capture -i INTERFACE [--filter EXPR] [--snaplen N] [--no-promiscuous]\n  [--buffer-size BYTES] [--direction in|out|inout] [--backend auto|ring|socket|bpf]\n  [--drop-to UID:GID] [--stats-interval SEC] [--flush-interval SEC]\n  --list-interfaces | --check [--interface IF] | --version"); return 0
+        when :help then @stdout.puts("vanken-capture -i INTERFACE [--filter EXPR] [--snaplen N] [--no-promiscuous]\n  [--buffer-size BYTES] [--direction in|out|inout] [--backend auto|ring|socket|bpf]\n  [--drop-to UID:GID] [--stats-interval SEC] [--flush-interval SEC]\n  [--stop-count N] [--stop-duration SEC] [--stop-bytes BYTES]\n  --list-interfaces | --check [--interface IF] | --version"); return 0
         end
 
         capture(options)
@@ -64,11 +64,18 @@ module Vanken
         end
         @control.write(:started, interface: options.capture[:interface], linktype: source.linktype,
                        snaplen: options.capture[:snaplen], backend: source.backend, filter: options.capture[:filter], privileges_dropped: dropped)
-        flushed_at = stats_at = monotonic
+        started_at = flushed_at = stats_at = monotonic
+        captured = 0
         until @stop_reason || source.stopped?
           packet = source.next_packet(timeout: 0.05)
-          writer << packet if packet
+          if packet
+            writer << packet
+            captured += 1
+          end
           now = monotonic
+          @stop_reason ||= "count_limit" if options.stop_count && captured >= options.stop_count
+          @stop_reason ||= "duration_limit" if options.stop_duration && now - started_at >= options.stop_duration
+          @stop_reason ||= "bytes_limit" if options.stop_bytes && writer.bytes_written >= options.stop_bytes
           if now - flushed_at >= options.flush_interval
             writer.flush
             flushed_at = now

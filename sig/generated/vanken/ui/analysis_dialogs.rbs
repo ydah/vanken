@@ -1,0 +1,71 @@
+# Generated from lib/vanken/ui/analysis_dialogs.rb with RBS::Inline
+
+module Vanken
+  module UI
+    class AnalysisRows
+      def initialize: (untyped rows) -> untyped
+
+      def count: () -> untyped
+
+      def row_id: (untyped index) -> untyped
+
+      def cell: (untyped index, untyped key) -> untyped
+
+      def sort: (untyped key, untyped direction) -> untyped
+
+      def []: (untyped index) -> untyped
+    end
+
+    module AnalysisDialogs
+      ANALYSIS_KINDS: untyped
+
+      def close_analysis: () -> untyped
+
+      def refresh_analysis: () -> untyped
+
+      def protocol_hierarchy: () -> untyped
+
+      def conversations: () -> untyped
+
+      def endpoints: () -> untyped
+
+      def statistics_dialog: (untyped kind, ?displayed_only: untyped) -> untyped
+
+      def expert_info: (?displayed_only: untyped) -> untyped
+
+      def io_graph: (?interval: untyped, ?expressions: untyped, ?displayed_only: untyped) -> untyped
+
+      def follow_tcp_stream: (?untyped stream_id, ?format: untyped, ?direction: untyped) -> untyped
+
+      def search_stream: (untyped value) -> untyped
+
+      def save_stream_dialog: (?format: untyped, ?direction: untyped) -> untyped
+
+      def export_packets: () -> untyped
+
+      def export_dissections: () -> untyped
+
+      def export_dialog: (?untyped dissections, ?scope: untyped, ?format: untyped, ?range_value: untyped, ?exclude_ignored: untyped) -> untyped
+
+      def file_properties: () -> untyped
+
+      private
+
+      def analysis_dialog: (untyped kind, untyped title, untyped controls, ?reopen: untyped) -> untyped
+
+      def analysis_background: (untyped operation) ?{ (?) -> untyped } -> untyped
+
+      def analysis_content: (untyped content) -> untyped
+
+      def analysis_table: (untyped rows, untyped keys) ?{ (?) -> untyped } -> untyped
+
+      def statistics_table: (untyped statistics) -> untyped
+
+      def statistics_filter: (untyped table, untyped row) -> untyped
+
+      def export_path: (untyped default_name) ?{ (?) -> untyped } -> untyped
+
+      def capture_properties: (untyped doc, untyped cancelled) -> untyped
+    end
+  end
+end

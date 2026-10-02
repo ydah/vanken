@@ -40,6 +40,14 @@ module Vanken
 
       def count = @count
       def packet_count = @packet_count
+      def invalidate_rows(numbers)
+        @generation += 1
+        @pending, @requests = {}, {}
+        @batch_scheduled = false
+        @refresh_pending = @refresh_again = nil
+        numbers.each { |number| @rows.delete(number) }
+        @ui.window.request_frame
+      end
       def row_id(index)
         return [:pending, index] unless index.is_a?(Integer) && index.between?(0, @count - 1)
         @numbers[index] ||= @document.number_at(index)
@@ -51,7 +59,21 @@ module Vanken
         text = value(index, key)
         return nil if text.nil?
         theme = @ui.app.global(:theme)
-        Zaniah::Text.new(text.to_s, font: @ui.monospace_font, size: theme.typography.size_sm, color: theme.colors.text)
+        colors = row_style(index)
+        Zaniah::Text.new(text.to_s, font: @ui.monospace_font, size: theme.typography.size_sm, color: colors.fetch(:foreground, theme.colors.text))
+      end
+      def row_style(index)
+        number = row_id(index)
+        return {} unless number.is_a?(Integer)
+        if @ui.table.respond_to?(:selection) && @ui.table.selection.include?(number)
+          theme = @ui.app.global(:theme)
+          return {foreground: theme.colors.text, strikethrough: @document.ignored.include?(number)}
+        end
+        if @document.ignored.include?(number)
+          return {foreground: @ui.app.global(:theme).colors.text_muted, strikethrough: true}
+        end
+        return {foreground: Zaniah::Color.parse("#ffffff"), background: Zaniah::Color.parse("#000000")} if @document.marked.include?(number)
+        @rows[number]&.fetch(:style, {}) || {}
       end
       def value(index, key)
         number = row_id(index)
@@ -139,7 +161,17 @@ module Vanken
       def row_values(document, number, index, format, precision, previous = :current)
         row = document.row(number)
         values = row.slice(:source, :destination, :protocol, :length, :info).transform_values(&:to_s)
+        if @ui.respond_to?(:resolve_address)
+          %i[source destination].each do |key|
+            values[key] = @ui.resolve_address(values[key], document: document, number: number)
+          end
+        end
+        values.merge!(row.select { |key, _| key.to_s.start_with?("field:") })
         values[:time] = format_time(document, row, number, index, format, precision, previous)
+        if @ui.respond_to?(:coloring_enabled?) && @ui.coloring_enabled?
+          colors = @ui.coloring_rules.match(document.view(number), theme: @ui.app.global(:theme).name) || {}
+          values[:style] = colors.transform_values { |color| Zaniah::Color.parse(color) }
+        end
         values
       rescue StandardError
         nil

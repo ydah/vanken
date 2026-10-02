@@ -12,7 +12,7 @@ module Vanken
         frame = node("frame", "Frame #{raw.number}: #{raw.original_length} bytes on wire, #{raw.caplen} captured", offset: 0, length: raw.caplen)
         nodes = packet.layers.each_with_index.map do |layer, index|
           prefix = packet.layers.count { |item| item.protocol == layer.protocol } > 1 ? "#{layer.protocol}[#{index}]" : layer.protocol.to_s
-          klass = Redhound::Registry.default.protocols[layer.protocol]
+          klass = packet.registry.protocols[layer.protocol]
           source = packet.layer_source(layer)
           children = layer.fields.map do |field|
             value = field.value

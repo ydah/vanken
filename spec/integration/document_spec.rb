@@ -2,9 +2,35 @@
 
 require "spec_helper"
 require "tmpdir"
+require "timeout"
 require_relative "../support/packets"
 
 RSpec.describe "Capture documents" do
+  it "waits for an overlapping close and removes the capture session only once" do
+    document = Vanken::App::Document.new(process_analysis: false).ingest([frame]).wait
+    directory = document.store.directory
+    entered, release = Queue.new, Queue.new
+    allow(document.store).to receive(:close).and_wrap_original do |original|
+      entered << true
+      release.pop
+      original.call
+    end
+    first = Thread.new { document.close }
+    entered.pop
+    second = Thread.new { document.close }
+    Timeout.timeout(1) { Thread.pass until second.status == "sleep" }
+    expect(entered.size).to eq(0), "the second close must wait for the first cleanup"
+    release << true
+    expect(first.value).to eq(document)
+    expect(second.value).to eq(document)
+    expect(document.store).to have_received(:close).once
+    expect(File.exist?(directory)).to be(false)
+  ensure
+    2.times { release << true } if release
+    [first, second].compact.each { |thread| thread.join rescue nil }
+    document&.close
+  end
+
   it "loads through separate receiving and analysis stages and exposes lazy rows and details" do
     Dir.mktmpdir do |directory|
       path = write_capture(File.join(directory, "input.pcap"), [frame, frame(tcp_bytes(seq: 101, flags: 24, payload: "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"), number: 2)])

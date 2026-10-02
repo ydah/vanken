@@ -1,0 +1,29 @@
+# Generated from lib/vanken/ui/coloring_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module ColoringOperations
+      def coloring_rules: () -> untyped
+
+      def reload_coloring_rules: () -> untyped
+
+      def replace_coloring_rules: (untyped payload) -> untyped
+
+      def coloring_enabled?: () -> untyped
+
+      def toggle_coloring: () -> untyped
+
+      def coloring_dialog: () -> untyped
+
+      def import_coloring_rules: () -> untyped
+
+      def export_coloring_rules: () -> untyped
+
+      private
+
+      def load_coloring_rules: () -> untyped
+
+      def move_coloring_rule: (untyped delta) -> untyped
+    end
+  end
+end

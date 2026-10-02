@@ -312,4 +312,47 @@ RSpec.describe Vanken::UI::PacketSource do
     expect(@source.count).to eq(2)
     expect(@source.row_id(0)).to eq(1)
   end
+
+  it "adds custom cells to the same background batch without parsing on the UI thread" do
+    @document.custom_columns = [{"key" => "field:ip.ttl", "field" => "ip.ttl", "visible" => true}]
+    rendering_thread = Thread.current
+    original = @document.method(:custom_row)
+    @document.define_singleton_method(:custom_row) do |number|
+      raise "custom column parsed on rendering thread" if Thread.current == rendering_thread
+      original.call(number)
+    end
+    expect(@source.value(0, :"field:ip.ttl")).to be_nil
+    expect(@source.value(1, :"field:ip.ttl")).to be_nil
+    @executor.drain
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    @executor.drain
+    expect(@source.value(0, :"field:ip.ttl")).to eq("64")
+    expect(@source.value(1, :"field:ip.ttl")).to eq("64")
+  end
+
+  it "uses selection text before packet colors while retaining ignored strikethrough" do
+    theme = Struct.new(:colors).new(Struct.new(:text).new(:selected_text))
+    allow(@ui.app).to receive(:global).with(:theme).and_return(theme)
+    @ui.table = Struct.new(:selection).new(Set[1])
+    @document.marked.add(1)
+    expect(@source.row_style(0)).to eq(foreground: :selected_text, strikethrough: false)
+    @document.ignored.add(1)
+    expect(@source.row_style(0)).to eq(foreground: :selected_text, strikethrough: true)
+  end
+
+  it "invalidates only resolved rows and rejects publications queued before the update" do
+    prime_viewport
+    @source.invalidate_rows([1])
+    expect(@source.value(0, :source)).to be_nil
+    expect(@source.value(1, :source)).to eq("192.0.2.10")
+    @executor.drain
+    @executor.work
+    @source.invalidate_rows([1])
+    @executor.drain
+    expect(@source.value(0, :source)).to be_nil
+    expect(@source.value(1, :source)).to eq("192.0.2.10")
+    @executor.finish
+    expect(@source.value(0, :source)).to eq("192.0.2.10")
+  end
 end

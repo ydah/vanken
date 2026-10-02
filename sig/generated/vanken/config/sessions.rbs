@@ -1,0 +1,17 @@
+# Generated from lib/vanken/config/sessions.rb with RBS::Inline
+
+module Vanken
+  module Config
+    module Sessions
+      def self.candidates: (?parent: untyped) -> untyped
+
+      def self.recover: (untyped directory, ?parent: untyped, **untyped options) -> untyped
+
+      def self.discard: (untyped directory, ?parent: untyped) -> untyped
+
+      def self.orphan?: (untyped directory) -> untyped
+
+      def self.with_session: (untyped directory, parent: untyped) -> untyped
+    end
+  end
+end

@@ -6,6 +6,24 @@ require "objspace"
 require_relative "../support/packets"
 
 RSpec.describe "Disk frame storage" do
+  it "rejects linked auxiliary analysis files without truncating their targets during recovery" do
+    [:symlink, :link].each do |kind|
+      Dir.mktmpdir do |outside|
+        target = File.join(outside, "valuable")
+        File.write(target, "retain this data")
+        store = Vanken::Core::FrameStore.new
+        store.append(frame)
+        store.flush
+        directory = store.directory
+        store.close(remove: false)
+        File.public_send(kind, target, File.join(directory, "summaries.bin"))
+        expect { Vanken::App::Document.recover(directory) }.to raise_error(Vanken::FileError, /unsafe session file/)
+        expect(File.binread(target)).to eq("retain this data")
+        FileUtils.remove_entry_secure(directory)
+      end
+    end
+  end
+
   it "keeps index memory bounded during capture and recovery while preserving append order" do
     store = Vanken::Core::FrameStore.new
     incoming = frame

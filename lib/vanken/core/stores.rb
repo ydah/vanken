@@ -116,12 +116,14 @@ module Vanken
       SIZE = 32
       attr_reader :streams #: Hash[Integer, Array[Integer]]
       attr_reader :experts #: Hash[Integer, Array[Hash[Symbol, untyped]]]
+      attr_reader :expert_count, :expert_max #: Integer
       # @rbs! @extra: Hash[Integer, Hash[String, untyped]]
       # @rbs! @io: File?
       # @rbs (String directory, ?persist: bool) -> void
       def initialize(directory, persist: true)
         @data = +"".b
         @extra, @streams, @experts = {}, Hash.new { |hash, key| hash[key] = [] }, {}
+        @expert_count = @expert_max = 0
         @io = File.open(File.join(directory, "annotations.bin"), "wb", 0o600) if persist
       end
       # @rbs (Integer number, annotation_values annotation) -> void
@@ -132,6 +134,8 @@ module Vanken
         @io&.write(record)
         @streams[annotation[:tcp_stream]] << number if annotation[:tcp_stream] >= 0
         @experts[number] = annotation[:expert_items] unless annotation[:expert_items].empty?
+        @expert_count += annotation[:expert_items].size
+        @expert_max = [@expert_max, annotation[:expert_max]].max
         @extra[number] = annotation[:extra] unless annotation[:extra].empty?
       end
       # @rbs () -> Hash[Symbol, untyped]
@@ -139,6 +143,7 @@ module Vanken
         batch = {data: @data, extras: @extra, streams: @streams.transform_values { |numbers| numbers }, experts: @experts}
         @data = +"".b
         @extra, @streams, @experts = {}, Hash.new { |hash, key| hash[key] = [] }, {}
+        @expert_count = @expert_max = 0
         batch
       end
       # @rbs (Hash[Symbol, untyped] batch) -> void
@@ -148,6 +153,13 @@ module Vanken
         @data << batch[:data]
         @extra.merge!(batch[:extras])
         @experts.merge!(batch[:experts])
+        batch[:experts].each_value do |items|
+          @expert_count += items.size
+          items.each do |item|
+            rank = {"note" => 1, "warn" => 2, "warning" => 2, "error" => 3}.fetch(item[:severity].to_s, 0)
+            @expert_max = [@expert_max, rank].max
+          end
+        end
         batch[:streams].each { |stream, numbers| @streams[stream].concat(numbers) }
       end
       # @rbs (Integer number) -> annotation_values

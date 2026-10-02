@@ -1,0 +1,41 @@
+# Generated from lib/vanken/ui/settings_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module SettingsOperations
+      SETTING_LABELS: untyped
+
+      def analysis_settings: () -> untyped
+
+      def preferences_dialog: () -> untyped
+
+      def apply_preference: (untyped path, untyped value) -> untyped
+
+      def profiles_dialog: () -> untyped
+
+      def switch_profile: (untyped name) -> untyped
+
+      def decode_as: () -> untyped
+
+      def plugins_dialog: () -> untyped
+
+      def reload_plugins: () -> untyped
+
+      def reconfigure_analysis: () -> untyped
+
+      def begin_reanalysis: () -> untyped
+
+      def wait_reanalysis: () -> untyped
+
+      def apply_analysis_settings: () -> untyped
+
+      def command_palette: () -> untyped
+
+      def rebuild_view: () -> untyped
+
+      private
+
+      def setting_label: (untyped path) -> untyped
+    end
+  end
+end

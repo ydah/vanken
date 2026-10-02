@@ -5,6 +5,10 @@ module Vanken
     class Document
       include DocumentJobs
 
+      include DocumentAnalysis
+
+      include Navigation
+
       attr_reader store: untyped
 
       attr_reader columns: untyped
@@ -31,11 +35,13 @@ module Vanken
 
       attr_reader analysis_options: untyped
 
+      attr_reader analysis_gateway_options: untyped
+
       attr_accessor frame_latency: untyped
 
       attr_accessor scanner: untyped
 
-      def initialize: (?on_update: untyped, ?preferences: untyped, ?store: untyped, ?scanner: untyped, ?process_analysis: untyped) -> untyped
+      def initialize: (?on_update: untyped, ?preferences: untyped, ?store: untyped, ?scanner: untyped, ?process_analysis: untyped, ?decode_as: untyped, ?plugins: untyped) -> untyped
 
       def open: (untyped path) -> untyped
 
@@ -61,6 +67,12 @@ module Vanken
 
       def closing?: () -> untyped
 
+      def analysis_stopped?: () -> untyped
+
+      def capture_stats: () -> untyped
+
+      def expert_summary: () -> untyped
+
       def stream_frames: (untyped stream) -> untyped
 
       def packet: (untyped number) -> untyped
@@ -71,6 +83,14 @@ module Vanken
       def view: (untyped number, ?packet: untyped, ?snapshot: untyped) -> untyped
 
       def row: (untyped number) -> untyped
+
+      def custom_columns: () -> untyped
+
+      def custom_columns=: (untyped columns) -> untyped
+
+      def custom_row: (untyped number) -> untyped
+
+      def custom_sort_value: (untyped number, untyped field) -> untyped
 
       def details: (untyped number) -> untyped
 
@@ -96,6 +116,8 @@ module Vanken
       def time_value: (untyped number, ?untyped format, ?references: untyped) -> untyped
 
       def cancel: () -> untyped
+
+      def cancel_reanalysis: () -> untyped
 
       def wait: (?untyped timeout) -> untyped
 

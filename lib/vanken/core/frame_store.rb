@@ -114,8 +114,8 @@ module Vanken
             [@data, @records, @reader, @index_reader].compact.each(&:close)
             @closed = true
           end
+          FileUtils.remove_entry_secure(@directory) if remove && File.directory?(@directory)
         end
-        FileUtils.remove_entry_secure(@directory) if remove && File.directory?(@directory)
       end
 
       private
@@ -130,7 +130,7 @@ module Vanken
 
       def validate_directory
         raise Vanken::FileError, "unsafe session directory" unless File.directory?(@directory) && !File.symlink?(@directory) && File.stat(@directory).uid == Process.uid
-        %w[frames.idx frames.bin interfaces.json session.json].each do |name|
+        Dir.children(@directory).each do |name|
           path = File.join(@directory, name)
           next unless File.exist?(path) || File.symlink?(path)
           stat = File.lstat(path)

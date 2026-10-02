@@ -1,0 +1,27 @@
+# Generated from lib/vanken/gateway/exporter.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class Exporter
+      DEFAULT_COLUMNS: untyped
+
+      def initialize: (untyped document) -> untyped
+
+      def numbers: (?scope: untyped, ?range: untyped, ?selected: untyped, ?exclude_ignored: untyped) -> untyped
+
+      def write: (untyped path, format: untyped, ?numbers: untyped, ?columns: untyped, ?cancelled: untyped) -> untyped
+
+      private
+
+      def ranges: (untyped value, untyped limit) -> untyped
+
+      def check_cancelled: (untyped cancelled) -> untyped
+
+      def json: (untyped file, untyped numbers, untyped format, untyped cancelled) -> untyped
+
+      def text_node: (untyped file, untyped node, untyped depth) -> untyped
+
+      def csv_value: (untyped number, untyped column) -> untyped
+    end
+  end
+end

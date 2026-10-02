@@ -1,0 +1,67 @@
+schema_version: 1
+rules:
+  - name: Bad TCP
+    filter: tcp.analysis.retransmission || tcp.analysis.out_of_order || tcp.analysis.lost_segment || tcp.analysis.duplicate_ack || tcp.analysis.zero_window
+    light: { fg: "#F78787", bg: "#121212" }
+    dark: { fg: "#F78787", bg: "#1A1A1A" }
+    enabled: true
+  - name: Malformed
+    filter: expert.severity == error
+    light: { fg: "#FFFC9C", bg: "#A40000" }
+    dark: { fg: "#FFFC9C", bg: "#7A0000" }
+    enabled: true
+  - name: Checksum Errors
+    filter: expert.code == "bad_checksum"
+    light: { fg: "#F78787", bg: "#121212" }
+    dark: { fg: "#F78787", bg: "#1A1A1A" }
+    enabled: true
+  - name: TCP RST
+    filter: tcp.flags.rst
+    light: { fg: "#FFFC9C", bg: "#A40000" }
+    dark: { fg: "#FFFC9C", bg: "#7A0000" }
+    enabled: true
+  - name: TCP SYN/FIN
+    filter: tcp.flags.syn || tcp.flags.fin
+    light: { fg: "#12272E", bg: "#A0A0A0" }
+    dark: { fg: "#E0E0E0", bg: "#4A4A4A" }
+    enabled: true
+  - name: HTTP
+    filter: http
+    light: { fg: "#12272E", bg: "#E4FFC7" }
+    dark: { fg: "#E4FFC7", bg: "#25331A" }
+    enabled: true
+  - name: TLS
+    filter: tls
+    light: { fg: "#12272E", bg: "#D6E8FF" }
+    dark: { fg: "#D6E8FF", bg: "#1E2A3A" }
+    enabled: true
+  - name: DNS
+    filter: dns
+    light: { fg: "#12272E", bg: "#C9F0FF" }
+    dark: { fg: "#C9F0FF", bg: "#16303A" }
+    enabled: true
+  - name: ICMP
+    filter: icmp || icmpv6
+    light: { fg: "#12272E", bg: "#FCE0FF" }
+    dark: { fg: "#FCE0FF", bg: "#3A2440" }
+    enabled: true
+  - name: ARP
+    filter: arp
+    light: { fg: "#12272E", bg: "#FAF0D7" }
+    dark: { fg: "#FAF0D7", bg: "#3A331F" }
+    enabled: true
+  - name: Broadcast
+    filter: eth.dst == ff:ff:ff:ff:ff:ff
+    light: { fg: "#BABDB6", bg: "#FFFFFF" }
+    dark: { fg: "#9A9D96", bg: "#2A2A2A" }
+    enabled: true
+  - name: UDP
+    filter: udp
+    light: { fg: "#12272E", bg: "#DAEEFF" }
+    dark: { fg: "#DAEEFF", bg: "#1C2833" }
+    enabled: true
+  - name: TCP
+    filter: tcp
+    light: { fg: "#12272E", bg: "#E7E6FF" }
+    dark: { fg: "#E7E6FF", bg: "#24233A" }
+    enabled: true

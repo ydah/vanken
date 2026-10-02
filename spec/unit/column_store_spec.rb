@@ -30,3 +30,22 @@ RSpec.describe Vanken::Core::ColumnStore do
     expect(store.port_values(2, "udp.srcport")).to eq([123, 789])
   end
 end
+
+RSpec.describe Vanken::Core::AnnotationStore do
+  it "retains expert counts and maximum severity across packed publication batches" do
+    Dir.mktmpdir do |directory|
+      worker = described_class.new(directory, persist: false)
+      annotation = {tcp_stream: -1, seq_rel: -1, ack_rel: -1, analysis_flags: [], expert_max: 2,
+        expert_items: [{severity: :warning, code: "test"}], extra: {}}
+      worker.append(1, annotation)
+      worker.append(2, annotation.merge(expert_max: 3, expert_items: [{severity: :error, code: "error"}]))
+      parent = described_class.new(directory)
+      parent.import(worker.drain)
+      expect([parent.expert_count, parent.expert_max]).to eq([2, 3])
+      expect([worker.expert_count, worker.expert_max]).to eq([0, 0])
+      parent.append(3, annotation)
+      expect([parent.expert_count, parent.expert_max]).to eq([3, 3])
+      parent.close
+    end
+  end
+end

@@ -11,7 +11,7 @@ module Vanken
       def run
         number = 1
         loop do
-          break if @document.respond_to?(:closing?) && @document.closing?
+          break if @document.analysis_stopped?
           if number > @document.store.durable_count
             break if @document.received? && number > @document.store.durable_count
             @document.wait_for_frames
@@ -20,11 +20,13 @@ module Vanken
           frame = @document.store.read(number)
           begin
             packet = @dissector.dissect(frame)
+            break if @document.analysis_stopped?
             @analysis.update(packet)
           rescue StandardError => error
             @document.publish_failure(number, error)
             packet = nil
           end
+          break if @document.analysis_stopped?
           @document.publish(number, packet) if packet
           number += 1
           if number % 256 == 0

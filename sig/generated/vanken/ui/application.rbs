@@ -3,6 +3,12 @@
 module Vanken
   module UI
     class Application
+      include ColumnOperations
+
+      include SettingsOperations
+
+      include AnalysisDialogs
+
       attr_reader app: untyped
 
       attr_reader window: untyped
@@ -25,9 +31,13 @@ module Vanken
 
       attr_reader interface_infos: untyped
 
-      def initialize: (?backend: untyped, ?preferences: untyped, ?debug: untyped) -> untyped
+      attr_reader interface_traffic: untyped
+
+      def initialize: (?backend: untyped, ?preferences: untyped, ?debug: untyped, ?session_parent: untyped) -> untyped
 
       def document: () -> untyped
+
+      def t: (untyped text, **untyped values) -> untyped
 
       def selected_number: () -> untyped
 
@@ -80,6 +90,18 @@ module Vanken
       def copy_text: (untyped text) -> untyped
 
       def show_error: (untyped error) -> untyped
+
+      def start_interface_monitor: () -> untyped
+
+      def stop_interface_monitor: () -> untyped
+
+      def resolve_address: (untyped address, document: untyped, number: untyped) -> untyped
+
+      def reset_resolver: () -> untyped
+
+      def recovery_dialog: (untyped sessions) -> untyped
+
+      def recover_session: (untyped directory) -> untyped
     end
   end
 end

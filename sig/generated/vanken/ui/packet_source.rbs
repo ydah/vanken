@@ -14,11 +14,15 @@ module Vanken
 
       def packet_count: () -> untyped
 
+      def invalidate_rows: (untyped numbers) -> untyped
+
       def row_id: (untyped index) -> untyped
 
       def index_of: (untyped id) -> untyped
 
       def cell: (untyped index, untyped key) -> untyped
+
+      def row_style: (untyped index) -> untyped
 
       def value: (untyped index, untyped key) -> untyped
 

@@ -26,15 +26,14 @@ RSpec.describe "Gateway field and filter literal contracts" do
     expect { Vanken::Core::DisplayFilter.compile(node.filter) }.not_to raise_error
   end
 
-  it "copies the registry after loading plugins" do
-    original = Redhound::Registry.default.copy
+  it "loads plugins into its own registry without changing the default or another profile" do
     Dir.mktmpdir do |directory|
       path = File.join(directory, "plugin.rb")
       File.write(path, 'Class.new(Redhound::Dissector) { protocol :regression_plugin, name: "Test", short: "TEST" }')
       dissector = Vanken::Gateway::Dissector.new(plugins: [path])
       expect(dissector.registry.protocols).to have_key(:regression_plugin)
+      expect(Redhound::Registry.default.protocols).not_to have_key(:regression_plugin)
+      expect(Vanken::Gateway::Dissector.new.registry.protocols).not_to have_key(:regression_plugin)
     end
-  ensure
-    Redhound::Registry.instance_variable_set(:@default, original)
   end
 end

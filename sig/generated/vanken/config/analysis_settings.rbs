@@ -1,0 +1,31 @@
+# Generated from lib/vanken/config/analysis_settings.rb with RBS::Inline
+
+module Vanken
+  module Config
+    class AnalysisSettings
+      def initialize: (?directory: untyped) -> untyped
+
+      def decode_as: () -> untyped
+
+      def decode_as=: (untyped rules) -> untyped
+
+      def plugin_entries: () -> untyped
+
+      def plugins: () -> untyped
+
+      def untrusted_plugins: () -> untyped
+
+      def register_plugin: (untyped path) -> untyped
+
+      def remove_plugin: (untyped path) -> untyped
+
+      def trust_plugins: (untyped paths) -> untyped
+
+      private
+
+      def save_plugins: (untyped entries) -> untyped
+
+      def validate_rules: (untyped rules) -> untyped
+    end
+  end
+end

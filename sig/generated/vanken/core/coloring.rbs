@@ -1,0 +1,52 @@
+# Generated from lib/vanken/core/coloring.rb with RBS::Inline
+
+module Vanken
+  module Core
+    module Coloring
+      class Rule < Data
+        attr_reader name(): String
+
+        attr_reader filter(): String
+
+        attr_reader light(): Hash[String, String]
+
+        attr_reader dark(): Hash[String, String]
+
+        attr_reader enabled(): bool
+
+        attr_reader program(): DisplayFilter::Program
+
+        def self.new: (String name, String filter, Hash[String, String] light, Hash[String, String] dark, bool enabled, DisplayFilter::Program program) -> instance
+                    | (name: String, filter: String, light: Hash[String, String], dark: Hash[String, String], enabled: bool, program: DisplayFilter::Program) -> instance
+
+        def self.members: () -> [ :name, :filter, :light, :dark, :enabled, :program ]
+
+        def members: () -> [ :name, :filter, :light, :dark, :enabled, :program ]
+      end
+
+      class RuleSet
+        DEFAULT_PATH: untyped
+
+        attr_reader rules: Array[Rule]
+
+        # @rbs (Hash[String, untyped] payload, ?catalog: untyped) -> void
+        def initialize: (Hash[String, untyped] payload, ?catalog: untyped) -> void
+
+        # @rbs (_FilterView view, ?theme: Symbol) -> Hash[Symbol, String]?
+        def match: (_FilterView view, ?theme: Symbol) -> Hash[Symbol, String]?
+
+        # @rbs () -> Hash[String, untyped]
+        def to_h: () -> Hash[String, untyped]
+
+        # @rbs (String path) -> void
+        def save: (String path) -> void
+
+        # @rbs (String path, ?catalog: untyped) -> RuleSet
+        def self.load: (String path, ?catalog: untyped) -> RuleSet
+
+        # @rbs (?catalog: untyped) -> RuleSet
+        def self.defaults: (?catalog: untyped) -> RuleSet
+      end
+    end
+  end
+end

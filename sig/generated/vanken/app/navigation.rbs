@@ -1,0 +1,31 @@
+# Generated from lib/vanken/app/navigation.rb with RBS::Inline
+
+module Vanken
+  module App
+    module Navigation
+      def displayed_index: (untyped number) -> untyped
+
+      def toggle_mark: (untyped number) -> untyped
+
+      def toggle_ignore: (untyped number) -> untyped
+
+      def toggle_time_reference: (untyped number) -> untyped
+
+      def mark_all_displayed: () -> untyped
+
+      def unmark_all: () -> untyped
+
+      def conversation_neighbor: (untyped number, untyped direction) -> untyped
+
+      def search: (untyped query, **untyped options) ?{ (?) -> untyped } -> untyped
+
+      def cancel_search: () -> untyped
+
+      private
+
+      def toggle_packet_state: (untyped values, untyped number, untyped field) -> untyped
+
+      def packet_states_changed: (untyped field) -> untyped
+    end
+  end
+end

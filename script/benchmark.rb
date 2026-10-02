@@ -7,6 +7,7 @@ require "objspace"
 require "json"
 require "open3"
 require "rbconfig"
+require "vanken/gateway/display_capture_filter"
 
 module VankenBenchmark
   module_function
@@ -160,8 +161,16 @@ module VankenBenchmark
       check(document.displayed_count == count, "process filter lost matching frames")
       result[:process_filter] = {expression: expression, workers: process_workers, seconds: seconds.round(4),
         matches: document.displayed_count, retained_parent_heap_bytes_per_frame: ((retained_bytes - before).fdiv(count)).round(2)}
+      expression = "ip.addr == 192.0.2.1 && udp.port == 54321"
+      check(Vanken::Gateway::DisplayCaptureFilter.new(expression).expression, "address filter did not convert to cBPF")
+      started = now
+      document.apply_filter(expression).wait(120)
+      seconds = now - started
+      raise document.error if document.error
+      check(document.displayed_count == count, "cBPF worker filter lost matching frames")
+      result[:capture_filter] = {expression: expression, workers: process_workers, seconds: seconds.round(4), matches: document.displayed_count}
     end
-    puts JSON.generate(phase: "display_filters", **result.slice(:filter_seconds, :filtered_rss_bytes, :filtered_rss_bytes_per_frame, :process_filter))
+    puts JSON.generate(phase: "display_filters", **result.slice(:filter_seconds, :filtered_rss_bytes, :filtered_rss_bytes_per_frame, :process_filter, :capture_filter))
     result[:application_ui] = application_ui(document, ui_samples) if ui_samples
     result
   ensure

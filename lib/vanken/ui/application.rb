@@ -11,34 +11,52 @@ require_relative "selection"
 require_relative "dialogs"
 require_relative "actions"
 require_relative "packet_source"
+require_relative "navigation_operations"
+require_relative "coloring_operations"
+require_relative "column_operations"
+require_relative "settings_operations"
+require_relative "analysis_dialogs"
 require_relative "../gateway/interfaces"
 require_relative "../gateway/capture_filter"
+require_relative "../gateway/resolver"
 require_relative "../app/capture_controller"
 require_relative "../config/log"
+require_relative "../config/messages"
+require_relative "../config/sessions"
 
 module Vanken
   module UI
     class Application
       include FileOperations, FilterOperations, Selection, Dialogs
+      include NavigationOperations, ColoringOperations
+      include ColumnOperations
+      include SettingsOperations
+      include AnalysisDialogs
       attr_reader :app, :window, :preferences, :table, :tree, :hex, :filter_field, :capture,
-                  :dialog_kind, :packet_source, :interface_infos
+                  :dialog_kind, :packet_source, :interface_infos, :interface_traffic
 
-      def initialize(backend: nil, preferences: Config::Preferences.new, debug: false)
-        @preferences = preferences
+      def initialize(backend: nil, preferences: nil, debug: false, session_parent: nil)
+        @profiles = Config::Profiles.new(directory: preferences&.directory || Config::Paths.config)
+        @preferences = preferences ||= @profiles.preferences
         @log = Config::Log.open(debug: debug, directory: File.join(preferences.directory, "logs"))
         @app = Zaniah::App.new
         @entity = @app.new_entity { {document: nil, number: nil, node: nil, details: [], bytes: "".b, error: nil} }
         @selection_generation, @file_generation, @filter_generation = 0, 0, 0
         @pool_mutex = Mutex.new
+        @resolver_mutex = Mutex.new
+        @resolution_changes = {}
         @autoscroll = false
         @backend = backend || (RUBY_PLATFORM.match?(/darwin/) ? :mac : RUBY_PLATFORM.match?(/mingw|mswin/) ? :windows : :linux)
-        @filter_field = Zaniah::UI::TextField.new("", placeholder: "表示フィルタ", clearable: false).test_id("vk.filter.input")
+        @session_parent = session_parent || Dir.tmpdir
+        @filter_field = Zaniah::UI::TextField.new("", placeholder: t("表示フィルタ"), clearable: false).test_id("vk.filter.input")
         @filter_field.completion(CompletionProvider.new(self)).on_change { |text, _| validate_filter(text) }
         @packet_source = PacketSource.new(self)
         @capture = App::CaptureController.new(preferences: preferences,
           on_document: ->(document) { @app.executor.post { attach_document(document) unless @closing } },
           on_update: ->(*) { @app.executor.post { changed unless @closing } })
         @window = @app.open_window(backend: @backend, width: preferences.get("layout.width"), height: preferences.get("layout.height"), title: "Vanken")
+        coloring_rules
+        column_settings
         unless @backend == :tui
           @window.text_system = Zaniah::TextSystem::Renderer.new
           @window.text_system.scale_factor = @window.scale_factor
@@ -59,6 +77,7 @@ module Vanken
         change_theme(preferences.get("appearance.theme"), persist: false)
         @main_view = MainView.new(self).test_id("vk.main")
         @window.draw { @main_view }
+        start_interface_monitor unless @backend == :headless
         show_error(Vanken::ConfigError.new(preferences.warning)) if preferences.warning
         @app.executor.background do
           infos = Gateway::Interfaces.list
@@ -71,9 +90,16 @@ module Vanken
         rescue StandardError => error
           @app.executor.post { @interface_error = error.message; changed }
         end
+        if @backend != :headless || session_parent
+          @app.executor.background do
+            sessions = Config::Sessions.candidates(parent: @session_parent)
+            @app.executor.post { recovery_dialog(sessions) if !@closing && !sessions.empty? && !@dialog }
+          end
+        end
       end
 
       def document = @app.read(@entity)[:document]
+      def t(text, **values) = Config::Messages.translate(text, language: @preferences.get("appearance.language"), **values)
       def selected_number = @app.read(@entity)[:number]
       def selected_node = @app.read(@entity)[:node]
       def detail_nodes = @app.read(@entity)[:details]
@@ -83,6 +109,19 @@ module Vanken
       end
       def changed
         return if @closing
+        apply_analysis_settings
+        if @reanalysis_in_flight && @reanalysis_task&.done? && document&.complete?
+          @reanalysis_in_flight = false
+          @packet_source.reset
+        end
+        if @reanalysis_selection && document&.complete? && !@reanalysis_in_flight
+          saved_doc, number, generation = @reanalysis_selection
+          @reanalysis_selection = nil
+          number = selected_number if generation != @selection_generation
+          select_packet(number) if document.equal?(saved_doc) && number && number <= document.count
+        end
+        begin_reanalysis if @pending_reanalysis
+        refresh_analysis
         @packet_source.refresh do
           next if @closing
           error = document&.error || @capture.error
@@ -96,9 +135,15 @@ module Vanken
       end
       def attach_document(value)
         return if @closing
+        wait_reanalysis
+        @pending_reanalysis = @reanalysis_selection = nil
+        @reanalysis_in_flight = false
+        close_analysis
+        cancel_packet_search
         value.scanner = ->(payload) { filter_pool.submit(payload) } if value
         @selection_generation += 1
         update { |state| state.merge!(document: value, number: nil, node: nil, details: [], bytes: "".b) }
+        configure_document_columns if value
         @packet_source.reset
         @tree&.replace([])
         @hex.bytes = "".b if @hex
@@ -108,9 +153,13 @@ module Vanken
         @table.scroll_to(0) if @table && value&.displayed_count&.positive? && !@autoscroll
         @window.title = "Vanken#{value&.path ? " — #{File.basename(value.path)}" : ""}" if @window.respond_to?(:title=)
       end
-      def run = @app.run
+      def run
+        return @app.run unless @backend == :tui
+        @window.on_tick { @app.executor.drain }
+        @window.run
+      end
       def native? = !%i[headless tui].include?(@backend)
-      def monospace_font = @window.text_system&.font
+      def monospace_font = @window.text_system.respond_to?(:font) ? @window.text_system.font : nil
       def install_panes(table, tree, hex) = (@table, @tree, @hex = table, tree, hex)
       def filter_pool
         @pool_mutex.synchronize do
@@ -125,6 +174,11 @@ module Vanken
       def close
         return if @closed
         @closing = true
+        stop_interface_monitor
+        reset_resolver
+        wait_reanalysis
+        close_analysis
+        cancel_packet_search
         @packet_source.reset
         @selection_generation += 1
         @filter_generation += 1
@@ -147,6 +201,7 @@ module Vanken
         theme = theme.with(typography: theme.typography.with(size_md: size, size_sm: size - 1, size_xs: size - 2))
         @app.global(:theme, theme)
         @preferences.set("appearance.theme", name) if persist
+        @packet_source.reset
         @window.request_frame
       end
       def zoom(delta = nil)
@@ -187,18 +242,137 @@ module Vanken
       end
       def status_text
         doc = document
-        return "キャプチャファイルを開くか、インタフェースを選んで開始してください" unless doc
+        return t("キャプチャファイルを開くか、インタフェースを選んで開始してください") unless doc
         dropped = @capture.stats.fetch("dropped", @capture.stats.fetch(:dropped, 0))
         total = doc.store.durable_count
-        "#{doc.loading? ? '読み込み中' : 'パケット'} #{@packet_source.packet_count} / #{total}   表示 #{@packet_source.count}   ドロップ #{dropped}#{doc.progress ? "   #{(doc.progress * 100).round}%" : ''}"
+        t("%{label} %{count} / %{total}   表示 %{displayed}   ドロップ %{dropped}%{progress}",
+          label: t(doc.loading? ? "読み込み中" : "パケット"), count: @packet_source.packet_count, total: total,
+          displayed: @packet_source.count, dropped: dropped, progress: doc.progress ? "   #{(doc.progress * 100).round}%" : "")
       end
       def copy_text(text) = @window.write_clipboard([Zaniah::Clipboard::Item.new({"text/plain" => text})])
       def show_error(error)
         @log.error("#{error.class}: #{error.message}")
         @last_error = error
+        dismiss_dialog
         @dialog_kind = :error
-        @dialog = Zaniah::UI::Dialog.new(Zaniah::UI::Label.new(error.message, wrap: :word), title: "操作を完了できません").test_id("vk.error")
+        @dialog_reopen = -> { show_error(error) }
+        @dialog = Zaniah::UI::Dialog.new(Zaniah::UI::Label.new(error.message, wrap: :word), title: t("操作を完了できません"), close_label: t("閉じる")).test_id("vk.error")
+          .on_close { dismiss_dialog }
         @window.request_frame
+      end
+
+      def start_interface_monitor
+        return if @traffic_thread
+        @traffic_mutex, @traffic_condition = Mutex.new, ConditionVariable.new
+        @traffic_thread = Thread.new do
+          previous, history = nil, {}
+          loop do
+            break if @closing
+            sample = Gateway::Interfaces.sample_traffic(previous: previous, history: history)
+            previous, history = sample.values_at(:previous, :history)
+            post = @traffic_mutex.synchronize do
+              @traffic_sample = sample
+              !@traffic_posted && (@traffic_posted = true)
+            end
+            if post
+              @app.executor.post do
+                value = @traffic_mutex.synchronize { @traffic_posted = false; @traffic_sample }
+                next if @closing
+                @interface_traffic = value
+                @app.update(@entity) { |_state, cx| cx.notify }
+              end
+            end
+            @traffic_mutex.synchronize { @traffic_condition.wait(@traffic_mutex, 1) unless @closing }
+          end
+        end
+      end
+
+      def stop_interface_monitor
+        return unless @traffic_thread
+        @traffic_mutex.synchronize { @traffic_condition.broadcast }
+        @traffic_thread.join
+        @traffic_thread = nil
+      end
+
+      def resolve_address(address, document:, number:)
+        resolver = @resolver_mutex.synchronize do
+          next if @closing || !@preferences.get("name_resolution.enabled")
+          @resolver ||= Gateway::Resolver.new(timeout: @preferences.get("name_resolution.timeout"), limit: @preferences.get("name_resolution.cache_size"))
+        end
+        return address unless resolver
+        resolver.request(address) do |_name|
+          post = @resolver_mutex.synchronize do
+            next false if @closing || !resolver.equal?(@resolver)
+            (@resolution_changes[document] ||= Set.new).add(number)
+            !@resolution_posted && (@resolution_posted = true)
+          end
+          next unless post
+          @app.executor.post do
+            changes = @resolver_mutex.synchronize do
+              saved, @resolution_changes = @resolution_changes, {}
+              @resolution_posted = false
+              saved
+            end
+            next if @closing
+            numbers = changes[self.document]
+            @packet_source.invalidate_rows(numbers) if numbers && !numbers.empty?
+          end
+        end
+      end
+
+      def reset_resolver
+        old = @resolver_mutex.synchronize do
+          previous, @resolver = @resolver, nil
+          @resolution_changes = {}
+          @resolution_posted = false
+          previous
+        end
+        return unless old
+        @closing ? old.close : @app.executor.background { old.close }
+      end
+
+      def recovery_dialog(sessions)
+        content = Zaniah::Div.new.flex_col.gap(8)
+        sessions.each do |directory|
+          content.child(Zaniah::Div.new.flex_col.gap(4)
+            .child(Zaniah::UI::Label.new(directory, wrap: :word))
+            .child(Zaniah::Div.new.flex_row.gap(8)
+              .child(Zaniah::UI::Button.new(t("復旧")).on_click { recover_session(directory) })
+              .child(Zaniah::UI::Button.new(t("破棄"), variant: :danger).on_click do
+                Config::Sessions.discard(directory, parent: @session_parent)
+                remaining = sessions.reject { |value| value == directory }
+                remaining.empty? ? dismiss_dialog : recovery_dialog(remaining)
+              rescue StandardError => error
+                show_error(error)
+              end)))
+        end
+        show_dialog(:recovery, t("前回のキャプチャを復旧"), Zaniah::ScrollView.new.h(240).child(content), reopen: -> { recovery_dialog(sessions) })
+      end
+
+      def recover_session(directory)
+        request_destructive do
+          previous = document
+          attach_document(nil)
+          dismiss_dialog
+          @file_generation += 1
+          generation = @file_generation
+          preferences = @preferences
+          @app.executor.background do
+            previous&.close
+            doc = Config::Sessions.recover(directory, parent: @session_parent, preferences: preferences,
+              on_update: ->(updated) { @app.executor.post { changed if !@closing && document.equal?(updated) } })
+            @app.executor.post do
+              if !@closing && generation == @file_generation
+                attach_document(doc)
+                changed
+              else
+                doc.close
+              end
+            end
+          rescue StandardError => error
+            @app.executor.post { show_error(error) if !@closing && generation == @file_generation }
+          end
+        end
       end
     end
   end

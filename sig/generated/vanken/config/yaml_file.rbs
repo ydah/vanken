@@ -1,0 +1,11 @@
+# Generated from lib/vanken/config/yaml_file.rb with RBS::Inline
+
+module Vanken
+  module Config
+    module YamlFile
+      def self.read: (untyped path, ?default: untyped) -> untyped
+
+      def self.write: (untyped path, untyped value) -> untyped
+    end
+  end
+end

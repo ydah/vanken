@@ -1,0 +1,52 @@
+# Generated from lib/vanken/gateway/resolver.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    # Reverse DNS never runs on the requesting thread. Callbacks run on the
+    # worker; UI callers must post their publication to the UI executor.
+    class Resolver
+      NEGATIVE_TTL: ::Float
+
+      @worker: Thread
+
+      @closed: bool
+
+      @mutex: Mutex
+
+      @pending: Hash[String, Array[^(String) -> void]]
+
+      @cache: Hash[String, [ String?, Float? ]]
+
+      @queue: SizedQueue[String?]
+
+      @resolver: untyped
+
+      @limit: Integer
+
+      @timeout: Float
+
+      # @rbs (?timeout: Integer | Float, ?limit: Integer, ?resolver: untyped) -> void
+      def initialize: (?timeout: Integer | Float, ?limit: Integer, ?resolver: untyped) -> void
+
+      # @rbs (String address) ?{ (String) -> void } -> String
+      def request: (String address) ?{ (String) -> void } -> String
+
+      # @rbs () -> void
+      def close: () -> void
+
+      private
+
+      # @rbs (String address) -> String?
+      def numeric_address: (String address) -> String?
+
+      # @rbs () -> Float
+      def now: () -> Float
+
+      # @rbs (String address) -> String?
+      def lookup: (String address) -> String?
+
+      # @rbs () -> void
+      def work: () -> void
+    end
+  end
+end

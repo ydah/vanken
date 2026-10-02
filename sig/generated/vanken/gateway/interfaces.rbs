@@ -11,6 +11,18 @@ module Vanken
 
       # @rbs (String name) -> Hash[Symbol, untyped]
       def self.find: (String name) -> Hash[Symbol, untyped]
+
+      # @rbs () -> Hash[String, Integer]
+      def self.traffic_counters: () -> Hash[String, Integer]
+
+      # @rbs (String text) -> Hash[String, Integer]
+      def self.parse_linux_counters: (String text) -> Hash[String, Integer]
+
+      # @rbs (String text) -> Hash[String, Integer]
+      def self.parse_darwin_counters: (String text) -> Hash[String, Integer]
+
+      # @rbs (?previous: Hash[Symbol, untyped]?, ?history: Hash[String, Array[Integer]], ?now: Integer | Float) -> Hash[Symbol, untyped]
+      def self.sample_traffic: (?previous: Hash[Symbol, untyped]?, ?history: Hash[String, Array[Integer]], ?now: Integer | Float) -> Hash[Symbol, untyped]
     end
   end
 end

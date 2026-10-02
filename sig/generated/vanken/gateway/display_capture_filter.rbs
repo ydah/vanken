@@ -1,0 +1,37 @@
+# Generated from lib/vanken/gateway/display_capture_filter.rb with RBS::Inline
+
+module Vanken
+  module Gateway
+    class DisplayCaptureFilter
+      class Packet < Struct[untyped]
+        attr_accessor data(): untyped
+
+        attr_accessor original_length(): untyped
+
+        attr_accessor linktype(): untyped
+
+        attr_accessor meta(): untyped
+
+        def self.new: (?untyped data, ?untyped original_length, ?untyped linktype, ?untyped meta) -> instance
+                    | (?data: untyped, ?original_length: untyped, ?linktype: untyped, ?meta: untyped) -> instance
+      end
+
+      TUNNEL_PORTS: untyped
+
+      attr_reader expression: untyped
+
+      def initialize: (untyped expression) -> untyped
+
+      # nil requests the ordinary VDF evaluator; false is a definite non-match.
+      def match: (untyped frame) -> untyped
+
+      private
+
+      def convert: (untyped node) -> untyped
+
+      def term: (untyped field, untyped member) -> untyped
+
+      def eligible?: (untyped frame) -> untyped
+    end
+  end
+end

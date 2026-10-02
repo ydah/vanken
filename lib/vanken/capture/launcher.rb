@@ -171,6 +171,7 @@ module Vanken
       def capture_argv(options)
         options.flat_map do |key, value|
           next [] if value.nil?
+          next [] if %i[stop_count stop_duration stop_bytes].include?(key.to_sym) && value == 0
           next value ? [] : ["--no-promiscuous"] if key.to_sym == :promiscuous
 
           ["--#{key.to_s.tr('_', '-')}", value.to_s]

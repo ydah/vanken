@@ -12,6 +12,17 @@ module Vanken
       def self.rank: (Symbol? value) -> Integer
     end
 
+    # The public plugin DSL registers through Registry.default; keep that lookup local.
+    module RegistryScope
+      module Default
+        # @rbs () -> Redhound::Registry
+        def default: () -> Redhound::Registry
+      end
+
+      # @rbs [T] (Redhound::Registry registry) { () -> T } -> T
+      def self.with: [T] (Redhound::Registry registry) { () -> T } -> T
+    end
+
     class Dissector
       attr_reader registry: Redhound::Registry
 
@@ -27,6 +38,8 @@ module Vanken
 
     class PacketView
       attr_reader raw_packet: Redhound::Packet
+
+      attr_reader registry: Redhound::Registry
 
       # @rbs (Redhound::Packet packet, Redhound::Registry registry) -> void
       def initialize: (Redhound::Packet packet, Redhound::Registry registry) -> void
@@ -91,8 +104,8 @@ module Vanken
     end
 
     class FieldCatalog
-      # @rbs () -> void
-      def initialize: () -> void
+      # @rbs (?registry: Redhound::Registry) -> void
+      def initialize: (?registry: Redhound::Registry) -> void
 
       # @rbs () -> Array[String]
       def names: () -> Array[String]

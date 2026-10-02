@@ -1,0 +1,21 @@
+# Generated from lib/vanken/app/document_analysis.rb with RBS::Inline
+
+module Vanken
+  module App
+    module DocumentAnalysis
+      def self.included: (untyped base) -> untyped
+
+      module ClassMethods
+        def recover: (untyped directory, **untyped options) -> untyped
+      end
+
+      def analyze_store: () -> untyped
+
+      def reanalyze: (?decode_as: untyped, ?plugins: untyped, ?preferences: untyped) -> untyped
+
+      private
+
+      def open_analysis_files: () -> untyped
+    end
+  end
+end

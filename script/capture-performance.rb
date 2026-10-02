@@ -297,6 +297,7 @@ module VankenCapturePerformance
     RubyVM::YJIT.enable if defined?(RubyVM::YJIT.enable)
     Dir.mktmpdir("vanken-capture-performance-") do |directory|
       preferences = Vanken::Config::Preferences.new(directory: directory)
+      preferences.set("appearance.language", "en")
       preferences.set("capture.launcher", "sudo")
       ui = Vanken::UI::Application.new(backend: :headless, preferences: preferences)
       view = Vanken::UI::MainView.new(ui)

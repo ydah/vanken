@@ -31,4 +31,17 @@ RSpec.describe Vanken::Capture::HelperOptions do
     expect(described_class.parse(%w[--check]).command).to eq(:check)
     expect(described_class.parse(%w[--version]).command).to eq(:version)
   end
+
+  it "accepts bounded automatic stop conditions without opening output paths" do
+    options = described_class.parse(%w[-i eth0 --stop-count 25 --stop-duration 1.5 --stop-bytes 1024])
+    expect(options.stop_count).to eq(25)
+    expect(options.stop_duration).to eq(1.5)
+    expect(options.stop_bytes).to eq(1024)
+    %w[--stop-count --stop-duration --stop-bytes].each do |option|
+      %w[0 -1 NaN Infinity].each do |value|
+        expect { described_class.parse(["-i", "eth0", option, value]) }.to raise_error(ArgumentError)
+      end
+    end
+    expect { described_class.parse(%w[-i eth0 --ring-path /tmp/capture]) }.to raise_error(ArgumentError)
+  end
 end

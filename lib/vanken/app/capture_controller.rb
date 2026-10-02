@@ -4,11 +4,50 @@ require_relative "../errors"
 require_relative "../capture/launcher"
 require_relative "../capture/control_protocol"
 require_relative "../gateway/file_reader"
+require_relative "../gateway/file_writer"
 require_relative "document"
 
 module Vanken
   module App
     class CaptureController
+      class RingReader
+        def initialize(reader, writer, on_error:)
+          @reader, @writer, @on_error = reader, writer, on_error
+          @flushed_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        end
+
+        def next_frame(timeout:)
+          frame = @reader.next_frame(timeout: timeout)
+          @writer << frame if frame
+          now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          if !frame || now - @flushed_at >= 0.05
+            @writer.flush
+            @flushed_at = now
+          end
+          frame
+        rescue Vanken::FileError, IOError, SystemCallError
+          @on_error.call
+          raise
+        end
+
+        def eof? = @reader.eof?
+        def stop = @reader.stop
+        def close
+          return if @closed
+          @closed = true
+          begin
+            @writer.write_stats(@reader.stats)
+          ensure
+            begin
+              @writer.close
+            ensure
+              @reader.close
+            end
+          end
+        end
+      end
+      private_constant :RingReader
+
       class Error < Vanken::CaptureError
         attr_reader :code
 
@@ -20,6 +59,7 @@ module Vanken
 
       def initialize(launcher: nil, preferences: nil, on_update: nil, on_document: nil)
         @preferences, @on_update, @on_document = preferences, on_update, on_document
+        @custom_launcher = !launcher.nil?
         @launcher = launcher || Capture::Launcher.new(strategy: preferences&.get("capture.launcher") || :auto)
         @mutex = Mutex.new
         @state, @stats = :idle, {}
@@ -34,6 +74,14 @@ module Vanken
       def capturing? = state == :capturing
       def running? = @mutex.synchronize { !!@worker&.alive? }
       def snapshot = @mutex.synchronize { {state: @state, stats: @stats.dup, error: @error, warning: @warning, document: @document} }
+
+      def preferences=(value)
+        @mutex.synchronize do
+          raise Error, "cannot change capture preferences while capture is running" if @worker&.alive?
+          @preferences = value
+          @launcher = Capture::Launcher.new(strategy: value&.get("capture.launcher") || :auto) unless @custom_launcher
+        end
+      end
 
       def start(options)
         @mutex.synchronize do
@@ -89,7 +137,9 @@ module Vanken
       private
 
       def run
-        handle = @launcher.launch(@options)
+        helper_options = @options.is_a?(Hash) ? @options.reject { |key, _| key.start_with?("ring_") } : @options
+        ring_writer = open_ring
+        handle = @launcher.launch(helper_options)
         @mutex.synchronize do
           @handle = handle
           stop_helper if @stop_requested
@@ -99,6 +149,7 @@ module Vanken
         @mutex.synchronize { @document = doc }
         @on_document&.call(doc)
         reader = Gateway::FileReader.new(handle.stdout)
+        reader = RingReader.new(reader, ring_writer, on_error: -> { stop }) if ring_writer
         doc.ingest(reader, live: true)
         doc.wait
         unless control.join(3)
@@ -122,12 +173,26 @@ module Vanken
         control&.join
         doc&.wait
         reader&.close unless doc
+        ring_writer&.close
         handle&.close
         @mutex.synchronize do
           @handle = nil
           @state = @error || !completed ? :failed : :stopped
         end
         notify
+      end
+
+      def open_ring
+        return unless @options.is_a?(Hash)
+        path = @options["ring_path"].to_s
+        return if path.empty?
+
+        values = %w[max_bytes interval file_count].to_h do |key|
+          value = @options["ring_#{key}"]
+          [key.to_sym, value && value != 0 ? value : nil]
+        end.compact
+        raise Error, "ring saving requires a size or time rotation condition" unless values[:max_bytes] || values[:interval]
+        Gateway::FileWriter.open(File.expand_path(path), format: :pcapng, **values)
       end
 
       def consume_control(io)

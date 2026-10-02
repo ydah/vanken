@@ -10,6 +10,9 @@ jobs:
   bench-and-fuzz:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -18,5 +21,19 @@ jobs:
         with:
           ruby-version: '3.4'
           bundler-cache: true
-      - run: bundle exec ruby --yjit script/benchmark.rb 1000000 120 4
-      - run: bundle exec ruby script/fuzz.rb
+      - name: Benchmark one million packets
+        run: bundle exec ruby --yjit script/benchmark.rb 1000000 120 4 | tee benchmark.jsonl
+      - name: Compare VDF and cBPF
+        run: bundle exec ruby --yjit script/filter-performance.rb 20000 | tee filter-performance.json
+      - name: Measure filtered I/O graphs
+        run: bundle exec ruby --yjit script/analysis-performance.rb | tee analysis-performance.json
+      - name: Fuzz display filters
+        run: bundle exec ruby script/fuzz.rb
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: benchmark-results
+          path: |
+            benchmark.jsonl
+            filter-performance.json
+            analysis-performance.json

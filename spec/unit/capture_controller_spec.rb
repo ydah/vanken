@@ -137,6 +137,7 @@ RSpec.describe Vanken::App::CaptureController do
       controller = described_class.new(launcher: fake_launcher(directory))
       controller.start(interface: "test0")
       expect { controller.start(interface: "test0") }.to raise_error(Vanken::CaptureError)
+      expect { controller.preferences = nil }.to raise_error(Vanken::CaptureError, /running/)
       eventually { controller.document&.count == 2 }
       previous = controller.document
       controller.stop.wait(3)
@@ -167,6 +168,57 @@ RSpec.describe Vanken::App::CaptureController do
       controller = described_class.new(launcher: fake_launcher(directory))
       controller.close
       expect { controller.start(interface: "test0") }.to raise_error(Vanken::CaptureError, /closed/)
+    ensure
+      controller&.close
+    end
+  end
+
+  it "saves a bounded ring as the invoking user and drains the last frame on stop" do
+    Dir.mktmpdir do |directory|
+      launcher = fake_launcher(directory)
+      allow(launcher).to receive(:launch).and_call_original
+      controller = described_class.new(launcher: launcher)
+      controller.start(interface: "test0", ring_path: File.join(directory, "ring.pcapng"),
+        ring_max_bytes: 1, ring_file_count: 2)
+      eventually { controller.document&.count == 2 }
+      controller.stop.wait(3)
+      expect(controller.state).to eq(:stopped)
+      expect(launcher).to have_received(:launch).with({"interface" => "test0"})
+      files = Dir[File.join(directory, "ring_*.pcapng")]
+      expect(files.size).to eq(2)
+      expect(files.map { |path| [File.stat(path).uid, File.stat(path).mode & 0o777] }).to eq([[Process.uid, 0o600]] * 2)
+      expect(files.flat_map { |path| Vanken::Gateway::FileReader.new(path).to_a.map(&:bytes) }).to eq(
+        [frame.bytes, frame(tcp_bytes(seq: 101, flags: 24, payload: "tail")).bytes])
+    ensure
+      controller&.close
+    end
+  end
+
+  it "fails an invalid ring destination before starting a privileged helper" do
+    launcher = double("launcher")
+    expect(launcher).not_to receive(:launch)
+    controller = described_class.new(launcher: launcher)
+    controller.start(interface: "test0", ring_path: "/missing-parent-vanken/ring.pcapng", ring_max_bytes: 1024)
+    controller.wait(3)
+    expect(controller.state).to eq(:failed)
+    expect(controller.error).not_to be_nil
+  ensure
+    controller&.close
+  end
+
+  it "reports a ring write failure and promptly stops and reaps its helper" do
+    Dir.mktmpdir do |directory|
+      launcher = fake_launcher(directory)
+      writer = double("ring writer", write_stats: nil, close: nil)
+      allow(writer).to receive(:<<).and_raise(Vanken::FileError, "ring disk is full")
+      allow(Vanken::Gateway::FileWriter).to receive(:open).and_return(writer)
+      controller = described_class.new(launcher: launcher)
+      controller.start(interface: "test0", ring_path: File.join(directory, "ring.pcapng"), ring_max_bytes: 1024)
+      expect(controller.wait(3)).to eq(controller)
+      expect(controller.state).to eq(:failed)
+      expect(controller.error.message).to eq("ring disk is full")
+      expect(controller.running?).to be(false)
+      expect(writer).to have_received(:close).at_least(:once)
     ensure
       controller&.close
     end

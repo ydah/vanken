@@ -15,7 +15,7 @@ module Vanken
 
       attr_reader directory: untyped
 
-      def initialize: (?directory: untyped) -> untyped
+      def initialize: (?directory: untyped, ?state_directory: untyped) -> untyped
 
       def get: (untyped path) -> untyped
 

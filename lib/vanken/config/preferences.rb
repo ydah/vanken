@@ -5,6 +5,7 @@ require "yaml"
 require "fileutils"
 require "logger"
 require "tempfile"
+require_relative "yaml_file"
 
 module Vanken
   module Config
@@ -25,22 +26,32 @@ module Vanken
     class Preferences
       DEFAULTS = {
         "schema_version" => 1,
-        "appearance" => {"theme" => "system", "font_size" => 13, "language" => "ja"},
-        "packet_list" => {"time_format" => "relative", "time_precision" => "micro", "autoscroll" => true, "row_cache_rows" => 20_000},
-        "capture" => {"snaplen" => 262_144, "promiscuous" => true, "buffer_size" => 4 << 20, "backend" => "auto", "launcher" => "auto", "direction" => "inout"},
+        "appearance" => {"theme" => "system", "font_size" => 13, "language" => ENV.fetch("LANG", "en").start_with?("ja") ? "ja" : "en"},
+        "packet_list" => {"time_format" => "relative", "time_precision" => "micro", "autoscroll" => true, "row_cache_rows" => 20_000, "coloring" => true},
+        "capture" => {"snaplen" => 262_144, "promiscuous" => true, "buffer_size" => 4 << 20, "backend" => "auto", "launcher" => "auto", "direction" => "inout",
+          "stop_count" => 0, "stop_duration" => 0.0, "stop_bytes" => 0, "ring_path" => "", "ring_max_bytes" => 0, "ring_interval" => 0.0, "ring_file_count" => 10},
+        "name_resolution" => {"enabled" => false, "timeout" => 1.0, "cache_size" => 256},
         "analysis" => {"verify_checksums" => false, "max_state_mib" => 256, "max_flows" => 100_000, "workers" => 4},
         "history" => [], "recent_files" => [], "bookmarks" => {}, "layout" => {"ratios" => [0.55, 0.6], "width" => 1280, "height" => 800, "columns" => []}
       }.freeze
       attr_reader :warning, :directory
 
-      def initialize(directory: Paths.config)
+      def initialize(directory: Paths.config, state_directory: nil)
         @directory = directory
+        @state_directory = state_directory || (directory == Paths.config ? Paths.state : File.join(directory, "state"))
         @values = Marshal.load(Marshal.dump(DEFAULTS))
         path = File.join(directory, "preferences.yml")
-        return unless File.file?(path)
-        saved = YAML.safe_load(File.read(path), permitted_classes: [], aliases: false)
-        raise Vanken::ConfigError, "unsupported preferences schema" unless saved.is_a?(Hash) && saved["schema_version"] == 1
-        merge(@values, saved)
+        if File.file?(path)
+          saved = YAML.safe_load(File.read(path), permitted_classes: [], aliases: false)
+          raise Vanken::ConfigError, "unsupported preferences schema" unless saved.is_a?(Hash) && saved["schema_version"] == 1
+          merge(@values, saved)
+        end
+        state = YamlFile.read(File.join(@state_directory, "recent.yml"))
+        merge(@values, state.slice("history", "recent_files"))
+        window = YamlFile.read(File.join(@state_directory, "window_state.yml"))
+        merge(@values["layout"], window.slice("width", "height", "ratios"))
+        filters = YamlFile.read(File.join(@directory, "filters.yml"))
+        merge(@values, filters.slice("bookmarks"))
         validate
       rescue Psych::Exception, Vanken::ConfigError, SystemCallError, TypeError => error
         @values = Marshal.load(Marshal.dump(DEFAULTS))
@@ -78,6 +89,9 @@ module Vanken
         temporary.fsync
         temporary.close
         File.rename(temporary.path, File.join(@directory, "preferences.yml"))
+        YamlFile.write(File.join(@state_directory, "recent.yml"), @values.slice("history", "recent_files"))
+        YamlFile.write(File.join(@state_directory, "window_state.yml"), @values["layout"].slice("width", "height", "ratios"))
+        YamlFile.write(File.join(@directory, "filters.yml"), @values.slice("bookmarks"))
       ensure
         temporary&.close unless temporary&.closed?
         File.unlink(temporary.path) if temporary && File.exist?(temporary.path)
@@ -99,6 +113,7 @@ module Vanken
         validate_shape(DEFAULTS, @values)
         raise Vanken::ConfigError, "invalid theme" unless %w[system dark light high_contrast].include?(get("appearance.theme"))
         raise Vanken::ConfigError, "invalid font size" unless get("appearance.font_size").is_a?(Integer) && get("appearance.font_size").between?(8, 32)
+        raise Vanken::ConfigError, "invalid language" unless %w[ja en].include?(get("appearance.language"))
         raise Vanken::ConfigError, "invalid time format" unless %w[relative absolute delta delta_displayed epoch].include?(get("packet_list.time_format"))
         raise Vanken::ConfigError, "invalid time precision" unless %w[milli micro nano].include?(get("packet_list.time_precision"))
         raise Vanken::ConfigError, "invalid history" unless history.all? { |item| item.is_a?(String) } && recent_files.all? { |item| item.is_a?(String) } && bookmarks.all? { |name, expression| name.is_a?(String) && expression.is_a?(String) }
@@ -111,6 +126,17 @@ module Vanken
         columns = get("layout.columns")
         raise Vanken::ConfigError, "invalid columns" unless columns.all? { |column| column.is_a?(Hash) && %w[no time source destination protocol length info].include?(column["key"]) && column["width"].is_a?(Numeric) && column["width"].finite? && column["width"].between?(40, 4096) && [true, false].include?(column["visible"]) } && columns.map { |column| column["key"] }.uniq.size == columns.size
         raise Vanken::ConfigError, "invalid capture settings" unless %w[auto direct sudo pkexec].include?(get("capture.launcher")) && %w[auto ring socket bpf].include?(get("capture.backend")) && %w[in out inout].include?(get("capture.direction"))
+        %w[capture.stop_count capture.stop_bytes capture.ring_max_bytes].each do |path|
+          raise ConfigError, "invalid #{path}" unless get(path).is_a?(Integer) && get(path).between?(0, (1 << 63) - 1)
+        end
+        %w[capture.stop_duration capture.ring_interval].each do |path|
+          value = get(path)
+          raise ConfigError, "invalid #{path}" unless value.is_a?(Numeric) && value.finite? && value >= 0
+        end
+        raise ConfigError, "invalid ring file count" unless get("capture.ring_file_count").between?(1, 10_000)
+        raise ConfigError, "invalid ring path" if get("capture.ring_path").include?("\0")
+        raise ConfigError, "invalid resolver timeout" unless get("name_resolution.timeout").finite? && get("name_resolution.timeout").between?(0.01, 10)
+        raise ConfigError, "invalid resolver cache size" unless get("name_resolution.cache_size").between?(1, 10_000)
       rescue NoMethodError, KeyError
         raise Vanken::ConfigError, "invalid preferences shape"
       end

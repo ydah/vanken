@@ -5,11 +5,13 @@ module Vanken
     module FileOperations
       CAPTURE_FILTERS = [{label: "Capture files", patterns: %w[*.pcapng *.pcap]}].freeze
 
+      def capture_filters = CAPTURE_FILTERS.map { |filter| filter.merge(label: t("キャプチャファイル")) }
+
       def open_dialog
         if @backend == :tui
-          path_dialog("ファイルを開く") { |path| open_file(path) }
+          path_dialog(t("ファイルを開く")) { |path| open_file(path) }
         else
-          paths = @window.prompt_for_paths(filters: CAPTURE_FILTERS)
+          paths = @window.prompt_for_paths(filters: capture_filters)
           open_file(paths.first) if paths && !paths.empty?
         end
       rescue StandardError => error
@@ -46,8 +48,8 @@ module Vanken
       def save_dialog(after: nil)
         return unless document
         path = @backend == :tui ? nil : @window.prompt_for_paths(save: true,
-          default_name: "capture.pcapng", filters: CAPTURE_FILTERS)&.first
-        return path_dialog("名前を付けて保存") { |value| save_file(value, after: after) } if @backend == :tui
+          default_name: "capture.pcapng", filters: capture_filters)&.first
+        return path_dialog(t("名前を付けて保存")) { |value| save_file(value, after: after) } if @backend == :tui
         save_file(path, after: after) if path
       rescue StandardError => error
         show_error(error)
@@ -77,28 +79,31 @@ module Vanken
       def reload_file = document&.source == :file && document.path && open_file(document.path)
 
       def request_destructive(&operation)
+        dismiss_dialog
         if @capture.running?
+          @dialog_reopen = -> { request_destructive(&operation) }
           @dialog_kind = :capturing
-          content = Zaniah::Div.new.gap(12).child(Zaniah::UI::Label.new("キャプチャを停止してから操作してください。"))
-            .child(Zaniah::UI::Button.new("停止").on_click do
+          content = Zaniah::Div.new.gap(12).child(Zaniah::UI::Label.new(t("キャプチャを停止してから操作してください。")))
+            .child(Zaniah::UI::Button.new(t("停止")).on_click do
               @capture.stop
               dismiss_dialog
               @app.executor.background { @capture.wait; @app.executor.post { request_destructive(&operation) unless @closing } }
             end)
-          @dialog = Zaniah::UI::Dialog.new(content, title: "キャプチャ中").test_id("vk.capture.confirm")
+          @dialog = Zaniah::UI::Dialog.new(content, title: t("キャプチャ中"), close_label: t("閉じる")).on_close { dismiss_dialog }.test_id("vk.capture.confirm")
           @window.request_frame
           return false
         end
         return operation.call unless document&.dirty?
+        @dialog_reopen = -> { request_destructive(&operation) }
         @pending_destructive = operation
         @dialog_kind = :unsaved
         content = Zaniah::Div.new.flex_col.gap(12)
-          .child(Zaniah::UI::Label.new("このキャプチャはまだ保存されていません。"))
+          .child(Zaniah::UI::Label.new(t("このキャプチャはまだ保存されていません。")))
           .child(Zaniah::Div.new.flex_row.gap(8)
-            .child(Zaniah::UI::Button.new("保存").test_id("vk.unsaved.save").on_click { save_dialog(after: @pending_destructive) })
-            .child(Zaniah::UI::Button.new("破棄", variant: :danger).test_id("vk.unsaved.discard").on_click { discard_changes })
-            .child(Zaniah::UI::Button.new("キャンセル", variant: :secondary).test_id("vk.unsaved.cancel").on_click { dismiss_dialog }))
-        @dialog = Zaniah::UI::Dialog.new(content, title: "キャプチャを保存しますか？", close_on_scrim: false).test_id("vk.unsaved")
+            .child(Zaniah::UI::Button.new(t("保存")).test_id("vk.unsaved.save").on_click { save_dialog(after: @pending_destructive) })
+            .child(Zaniah::UI::Button.new(t("破棄"), variant: :danger).test_id("vk.unsaved.discard").on_click { discard_changes })
+            .child(Zaniah::UI::Button.new(t("キャンセル"), variant: :secondary).test_id("vk.unsaved.cancel").on_click { dismiss_dialog }))
+        @dialog = Zaniah::UI::Dialog.new(content, title: t("キャプチャを保存しますか？"), close_on_scrim: false, close_label: t("閉じる")).on_close { dismiss_dialog }.test_id("vk.unsaved")
         @window.request_frame
         false
       end

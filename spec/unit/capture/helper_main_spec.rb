@@ -82,6 +82,26 @@ RSpec.describe Vanken::Capture::HelperMain do
     expect(JSON.parse(stderr.string.lines.last)).to include("type" => "error", "code" => "write_failed")
     expect(source).to have_received(:close)
   end
+
+  {"count" => ["--stop-count", "2"], "bytes" => ["--stop-bytes", "256"],
+    "duration" => ["--stop-duration", "0.1"]}.each do |reason, flags|
+    it "stops at the #{reason} condition and closes a complete output stream" do
+      allow(source).to receive(:stopped?).and_return(false)
+      allow(source).to receive(:next_packet).and_return(double("packet"))
+      allow(writer).to receive(:bytes_written).and_return(128, 256)
+      input, held = IO.pipe
+      helper = described_class.new(stdin: input, stdout: stdout, stderr: stderr)
+      allow(helper).to receive(:monotonic).and_return(0.0, 0.05, 0.1, 0.2)
+      expect(helper.run(%w[-i test0] + flags)).to eq(0)
+      expect(writer).to have_received(:<<).twice
+      expect(writer).to have_received(:write_stats).with(source.stats)
+      expect(writer).to have_received(:close).once
+      expect(JSON.parse(stderr.string.lines.last)["reason"]).to eq("#{reason}_limit")
+    ensure
+      input&.close
+      held&.close
+    end
+  end
 end
 
 RSpec.describe "standalone capture helper lifecycle" do

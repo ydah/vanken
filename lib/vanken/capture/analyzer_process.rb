@@ -11,6 +11,7 @@ module Vanken
         @document, @verify_checksums = document, verify_checksums
       end
       def run
+        return if @document.analysis_stopped?
         unless Gem.win_platform?
           raise Vanken::Error, "packet analysis must run without root privileges" if Process.uid.zero? || Process.euid.zero?
         end
@@ -23,10 +24,11 @@ module Vanken
         @pid = Process.spawn(*arguments, in: child_in, out: child_out, close_others: true)
         child_in.close
         child_out.close
-        request(command: :start, spool: @document.store.directory, verify_checksums: @verify_checksums, analysis_options: @document.analysis_options)
+        request(command: :start, spool: @document.store.directory, verify_checksums: @verify_checksums, analysis_options: @document.analysis_options,
+          gateway_options: @document.analysis_gateway_options)
         number = 1
         loop do
-          break if @document.closing?
+          break if @document.analysis_stopped?
           limit = @document.store.durable_count
           if number > limit
             break if @document.received? && number > @document.store.durable_count
@@ -36,13 +38,14 @@ module Vanken
           last = [number + 255, limit].min
           configuration = @document.analysis_configuration(number, last)
           batch = request(configuration.merge(command: :analyze, first: number, last: last, interfaces: @document.store.interfaces))
+          break if @document.analysis_stopped?
           raise Vanken::Error, "analysis response range mismatch" unless batch[:first] == number && batch[:last] == last
           @document.publish_analysis_batch(batch, self, configuration[:generation], context_token: configuration[:context_token])
           number = last + 1
         end
       rescue StandardError
-        @document.cancel
-        raise unless @document.closing?
+        @document.cancel unless @document.analysis_stopped?
+        raise unless @document.analysis_stopped?
       ensure
         child_in&.close unless child_in&.closed?
         child_out&.close unless child_out&.closed?
@@ -54,7 +57,7 @@ module Vanken
       end
       def request(value)
         AnalyzerWire.write(@input, value)
-        response = AnalyzerWire.read(@output, cancelled: -> { @document.closing? })
+        response = AnalyzerWire.read(@output, cancelled: -> { @document.analysis_stopped? })
         raise Vanken::Error, response[:error] if response[:error]
         response
       end
@@ -82,7 +85,7 @@ module Vanken
           end
           sleep(0.005)
         end
-        raise Vanken::Error, "analysis worker failed while stopping" unless status.success? || @document.closing? || $!
+        raise Vanken::Error, "analysis worker failed while stopping" unless status.success? || @document.analysis_stopped? || $!
       rescue Errno::ECHILD, Errno::ESRCH
         nil
       end

@@ -5,7 +5,8 @@ require "optparse"
 module Vanken
   module Capture
     class HelperOptions
-      attr_reader :command, :capture, :drop_to, :stats_interval, :flush_interval
+      attr_reader :command, :capture, :drop_to, :stats_interval, :flush_interval,
+                  :stop_count, :stop_duration, :stop_bytes
 
       def self.parse(argv)
         new.parse(argv)
@@ -36,13 +37,16 @@ module Vanken
           end
           opts.on("--stats-interval SEC", Float) { |v| @stats_interval = bounded(v, 0.01..60, "stats-interval") }
           opts.on("--flush-interval SEC", Float) { |v| @flush_interval = bounded(v, 0.001..1, "flush-interval") }
+          opts.on("--stop-count N", Integer) { |v| @stop_count = bounded(v, 1..9_223_372_036_854_775_807, "stop-count") }
+          opts.on("--stop-duration SEC", Float) { |v| @stop_duration = bounded(v, 0.001..31_536_000, "stop-duration") }
+          opts.on("--stop-bytes N", Integer) { |v| @stop_bytes = bounded(v, 1..9_223_372_036_854_775_807, "stop-bytes") }
           opts.on("--list-interfaces") { modes << :list_interfaces }
           opts.on("--check") { modes << :check }
           opts.on("--version") { modes << :version }
           opts.on("-h", "--help") { modes << :help }
         end
         # OptionParser accepts long-option abbreviations by default; privileged inputs must be exact.
-        known = %w[--interface --filter --snaplen --no-promiscuous --buffer-size --direction --backend --drop-to --stats-interval --flush-interval --list-interfaces --check --version --help]
+        known = %w[--interface --filter --snaplen --no-promiscuous --buffer-size --direction --backend --drop-to --stats-interval --flush-interval --stop-count --stop-duration --stop-bytes --list-interfaces --check --version --help]
         argv.each do |arg|
           raise ArgumentError, "unknown option: #{arg}" if arg.start_with?("--") && !known.include?(arg.split("=", 2).first)
         end

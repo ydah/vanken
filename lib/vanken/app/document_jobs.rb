@@ -9,7 +9,8 @@ module Vanken
         cancel_scan
         if expression.empty?
           @mutex.synchronize do
-            @filter = @filter_context = @display = @progress = @filter_job = nil
+            @filter = @filter_context = @filter_basis = @display = @progress = @filter_job = nil
+            @filter_live_predecessors = @filter_live_predecessor_start = nil
           end
           notify(force: true)
           return self
@@ -18,6 +19,9 @@ module Vanken
           context = filter_snapshot(displayed_delta: program.fields.include?("frame.time_delta_displayed"))
           @filter = program
           @filter_context = context
+          @filter_basis = context
+          @filter_live_predecessors = program.fields.include?("frame.time_delta_displayed") ? "".b : nil
+          @filter_live_predecessor_start = @filter_live_predecessors ? @count + 1 : nil
           # Reserve the history's capacity before publishing matches without placeholder rows.
           @display = Array.new(@count)
           @display[0, @count] = []
@@ -88,6 +92,7 @@ module Vanken
       end
 
       def cancel_scan
+        cancel_search
         tasks = @mutex.synchronize do
           @generation += 1
           @progress = nil
@@ -109,7 +114,7 @@ module Vanken
         end
         predecessors = (first...last).to_h { |number| [number.to_s, displayed_predecessor(number, snapshot)] }
         {"spool" => @store.directory, "expr" => expression, "from" => first, "to" => last,
-         "decode_as" => [], "plugins" => [], "annotations_json" => snapshot[:annotations_json],
+         "decode_as" => @analysis_gateway_options[:decode_as], "plugins" => @analysis_gateway_options[:plugins], "annotations_json" => snapshot[:annotations_json],
          "marked" => snapshot[:marked].select { |number| number >= first && number < last },
          "ignored" => snapshot[:ignored].select { |number| number >= first && number < last },
          "time_references_ns" => snapshot[:references].to_h { |number| [number.to_s, @store.metadata(number)[:timestamp_ns]] },
@@ -118,13 +123,19 @@ module Vanken
       end
 
       def displayed_predecessor(number, snapshot)
+        if (packed = snapshot[:live_predecessors]) && number >= snapshot[:live_predecessor_start]
+          offset = (number - snapshot[:live_predecessor_start]) * 8
+          return packed.unpack1("Q<", offset: offset) if offset < packed.bytesize
+        end
         return number - 1 unless snapshot[:predecessors]
         return snapshot[:last_displayed] || 0 if number > snapshot[:limit]
         snapshot[:predecessors].fetch(number, 0)
       end
 
       def sort(key, direction = :asc)
+        cancel_search
         raise ArgumentError, "invalid sort direction" unless %i[asc desc].include?(direction)
+        custom_field = custom_columns.find { |item| item["key"] == key.to_s }&.fetch("field")
         generation, sort_generation, filter_job = @mutex.synchronize do
           @sort_generation = (@sort_generation || 0) + 1
           [@generation, @sort_generation, @filter_job]
@@ -134,11 +145,15 @@ module Vanken
           next if generation != @generation || sort_generation != @sort_generation || @closing
           numbers = display_numbers
           values = numbers.to_h do |number|
-            value = case key.to_sym
-            when :no, :number then number
-            when :time then @store.metadata(number)[:timestamp_ns]
-            when :length then @store.metadata(number)[:original_length]
-            else row(number).fetch(key.to_sym)
+            value = if custom_field
+              custom_sort_value(number, custom_field)
+            else
+              case key.to_sym
+              when :no, :number then number
+              when :time then @store.metadata(number)[:timestamp_ns]
+              when :length then @store.metadata(number)[:original_length]
+              else row(number).fetch(key.to_sym)
+              end
             end
             [number, value]
           end
@@ -155,7 +170,7 @@ module Vanken
       def save(path, format: nil, numbers: nil)
         @error = nil
         format ||= File.extname(path) == ".pcap" ? :pcap : :pcapng
-        limit = count
+        limit = @store.durable_count
         @save_job = thread do
           temporary = Tempfile.create([".vanken-", ".tmp"], File.dirname(File.expand_path(path)))
           begin
@@ -168,7 +183,8 @@ module Vanken
             temporary.close
             File.rename(temporary.path, File.expand_path(path))
             @mutex.synchronize do
-              @dirty = false if !numbers && @count == limit && @store.count == limit
+              @saved_count = limit unless numbers
+              @dirty = false if !numbers && @store.count == limit
               @path = File.expand_path(path) unless numbers
             end
             notify(force: true)
@@ -188,6 +204,33 @@ module Vanken
 
       private
       def stale_job?(generation) = @closing || generation != @generation
+      # Retain only post-filter arrivals, at eight bytes per packet, and only for
+      # displayed-delta filters. Rebuilds read this basis without replacing it.
+      def record_live_predecessors(first, last, matches, context: @filter_context)
+        return unless @filter_live_predecessors
+        return if @rebuilding && @filter_basis.equal?(@rebuilding_filter_basis)
+        previous = (@display ? @display.last : @count) || 0
+        cursor = 0
+        (first..last).each do |number|
+          if number >= @filter_live_predecessor_start
+            raise Vanken::Error, "nonsequential displayed-delta history" unless number == @filter_live_predecessor_start + (@filter_live_predecessors.bytesize / 8)
+            predecessor = context ? displayed_predecessor(number, context) : previous
+            @filter_live_predecessors << [predecessor].pack("Q<")
+          end
+          if matches[cursor] == number
+            previous = number
+            cursor += 1
+          end
+        end
+      end
+
+      def reanalysis_snapshot
+        basis = @filter_basis || filter_snapshot(displayed_delta: !!@filter&.fields&.include?("frame.time_delta_displayed"))
+        return basis unless @filter_live_predecessors
+        basis.merge(live_predecessors: @filter_live_predecessors.dup.freeze,
+          live_predecessor_start: @filter_live_predecessor_start, limit: @count).freeze
+      end
+
       def filter_snapshot(displayed_delta: true)
         predecessors = @display.each_with_index.to_h { |number, index| [number, index.zero? ? 0 : @display[index - 1]] }.freeze if displayed_delta && @display
         {marked: @marked.dup.freeze, ignored: @ignored.dup.freeze, references: @time_references.dup.freeze,

@@ -15,12 +15,36 @@ module Vanken
       def self.rank(value) = {nil => 0, note: 1, warning: 2, warn: 2, error: 3}.fetch(value, 0)
     end
 
+    # The public plugin DSL registers through Registry.default; keep that lookup local.
+    module RegistryScope
+      module Default
+        # @rbs () -> Redhound::Registry
+        def default = Thread.current[:vanken_registry] || super
+      end
+
+      # @rbs [T] (Redhound::Registry registry) { () -> T } -> T
+      def self.with(registry)
+        previous = Thread.current[:vanken_registry]
+        Thread.current[:vanken_registry] = registry
+        yield
+      ensure
+        Thread.current[:vanken_registry] = previous
+      end
+    end
+    Redhound::Registry.singleton_class.prepend(RegistryScope::Default)
+
     class Dissector
       attr_reader :registry #: Redhound::Registry
       # @rbs (?verify_checksums: bool, ?decode_as: Array[String], ?plugins: Array[String]) -> void
       def initialize(verify_checksums: false, decode_as: [], plugins: [])
-        plugins.each { |path| load File.expand_path(path) }
         @registry = Redhound::Registry.default.copy
+        RegistryScope.with(@registry) do
+          plugins.each do |path|
+            load File.expand_path(path), true
+          rescue LoadError, SyntaxError => error
+            raise Vanken::ConfigError, "failed to load plugin #{path}: #{error.message}"
+          end
+        end
         decode_as.each { |rule| @registry.decode_as(rule) }
         @engine = Redhound::Engine.new(registry: @registry, verify_checksums: verify_checksums)
       end
@@ -45,6 +69,7 @@ module Vanken
 
     class PacketView
       attr_reader :raw_packet #: Redhound::Packet
+      attr_reader :registry #: Redhound::Registry
       # @rbs (Redhound::Packet packet, Redhound::Registry registry) -> void
       def initialize(packet, registry) = (@raw_packet = packet; @registry = registry)
       # @rbs (String name) -> Array[untyped]
@@ -86,7 +111,7 @@ module Vanken
       end
       # @rbs () -> String
       def info
-        safe_text(@raw_packet.summary)
+        RegistryScope.with(@registry) { safe_text(@raw_packet.summary) }
       end
       # @rbs () -> Core::annotation_values
       def annotations
@@ -132,12 +157,12 @@ module Vanken
     end
 
     class FieldCatalog
-      # @rbs () -> void
-      def initialize
+      # @rbs (?registry: Redhound::Registry) -> void
+      def initialize(registry: Redhound::Registry.default)
         @mutex = Mutex.new
         @fields = {} #: Hash[String, Hash[Symbol, untyped]]
-        @protocols = Redhound::Registry.default.protocols.keys.map { |id| id == :ipv4 ? "ip" : id.to_s }
-        Redhound::Registry.default.protocols.each do |id, klass|
+        @protocols = registry.protocols.keys.map { |id| id == :ipv4 ? "ip" : id.to_s }
+        registry.protocols.each do |id, klass|
           definitions = Array(klass.compiled_header&.definitions) #: Array[Redhound::FieldDefinition]
           definitions.each do |field|
             @fields[field.name] = {type: field.type, source: :dissect, protocol: id.to_s}.freeze

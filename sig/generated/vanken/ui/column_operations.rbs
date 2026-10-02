@@ -1,0 +1,29 @@
+# Generated from lib/vanken/ui/column_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module ColumnOperations
+      def column_settings: () -> untyped
+
+      def reload_columns: () -> untyped
+
+      def configure_document_columns: () -> untyped
+
+      def persist_columns_layout: (untyped items) -> untyped
+
+      def add_field_column: (untyped field, ?label: untyped, ?width: untyped) -> untyped
+
+      def remove_column: (untyped key) -> untyped
+
+      def field_menu: (untyped node) -> untyped
+
+      def columns_dialog: () -> untyped
+
+      private
+
+      def column_text: (untyped text) -> untyped
+
+      def apply_columns: () -> untyped
+    end
+  end
+end

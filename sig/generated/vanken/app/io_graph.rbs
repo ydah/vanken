@@ -1,0 +1,45 @@
+# Generated from lib/vanken/app/io_graph.rb with RBS::Inline
+
+module Vanken
+  module App
+    class IOPoint < Data
+      attr_reader interval(): untyped
+
+      attr_reader start_ns(): untyped
+
+      attr_reader packets(): untyped
+
+      attr_reader bytes(): untyped
+
+      def self.new: (untyped interval, untyped start_ns, untyped packets, untyped bytes) -> instance
+                  | (interval: untyped, start_ns: untyped, packets: untyped, bytes: untyped) -> instance
+
+      def self.members: () -> [ :interval, :start_ns, :packets, :bytes ]
+
+      def members: () -> [ :interval, :start_ns, :packets, :bytes ]
+    end
+
+    class IOSeries < Data
+      attr_reader expression(): untyped
+
+      attr_reader interval_ns(): untyped
+
+      attr_reader points(): untyped
+
+      attr_reader omitted_intervals(): untyped
+
+      def self.new: (untyped expression, untyped interval_ns, untyped points, untyped omitted_intervals) -> instance
+                  | (expression: untyped, interval_ns: untyped, points: untyped, omitted_intervals: untyped) -> instance
+
+      def self.members: () -> [ :expression, :interval_ns, :points, :omitted_intervals ]
+
+      def members: () -> [ :expression, :interval_ns, :points, :omitted_intervals ]
+    end
+
+    module IOGraph
+      INTERVALS: untyped
+
+      def self.build: (untyped document, ?interval: untyped, ?series: untyped, ?displayed_only: untyped, ?cancelled: untyped) -> untyped
+    end
+  end
+end

@@ -17,6 +17,9 @@ module Vanken
       # @rbs () -> void
       def flush: () -> void
 
+      # @rbs () -> Integer
+      def bytes_written: () -> Integer
+
       # @rbs (Redhound::Capture::Stats | Hash[Symbol | String, Integer] stats, ?interface: Redhound::Capture::Interface?) -> void
       def write_stats: (Redhound::Capture::Stats | Hash[Symbol | String, Integer] stats, ?interface: Redhound::Capture::Interface?) -> void
 
