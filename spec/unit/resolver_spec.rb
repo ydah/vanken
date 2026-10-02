@@ -138,11 +138,14 @@ RSpec.describe Vanken::Gateway::Resolver do
     resolver = resolver_for(driver, timeout: 0.05)
     resolved = Queue.new
     resolver.request("192.0.2.1") { |name| resolved << name }
-    await_result(driver.calls)
+    _address, worker = await_result(driver.calls)
     resolver.request("192.0.2.2") { |name| resolved << name }
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     resolver.close
-    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 0.2
+    # Ruby's timeout thread can be delayed on loaded runners. Still reject a
+    # shutdown that waits indefinitely for the blocked lookup's answer.
+    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 0.5
+    expect(worker.join(1)).to eq(worker)
     expect(driver.closed).to be true
     expect(resolved).to be_empty
     expect(driver.calls).to be_empty
