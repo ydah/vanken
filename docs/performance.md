@@ -164,3 +164,16 @@ The initial `26b3e7b` source and current `2169b6a` source were archived and run 
 | Median | 11.623641 | 12.085011 |
 
 Median elapsed time increased 3.97%; median throughput changed from 8,603.16 to 8,274.71 frames/s, a 3.82% decrease. The 15% threshold was not exceeded for this workload. All six runs verified exactly 100,000 durable and analyzed frames, UDP decoding, no document error, and analyzer-child cleanup. This comparison does not explain the separate shared-VM Linux timing difference or establish the 15,000 frames/s target.
+
+### Same-host complete-application rendering comparison
+
+The initial `26b3e7b` and release `6fe93c1` sources were also compared in three alternating fresh-process pairs on the same Mac, with Ruby 4.0.6, YJIT, and the same public dependencies. Each used the original production application benchmark, 10,000 UDP frames, Japanese/light settings, real fonts, a 1280 × 800 viewport, packet 1 selected with IPv4 TTL expanded, 100 warm renders, and 120 measured renders. All six runs verified the loaded source paths, exact durable/analyzed/list counts, selected packet and field, and absence of errors. Rendering included the public scene pipeline and accessibility, with `present: false`; pixels, native events, live acquisition, and GPU presentation were excluded.
+
+| Pair | Initial scene p95, ms | Release scene p95, ms |
+| --- | ---: | ---: |
+| 1 | 15.850 | 15.594 |
+| 2 | 15.478 | 13.774 |
+| 3 | 15.235 | 14.514 |
+| Median | 15.478 | 14.514 |
+
+Median scene p95 decreased 6.23%. Median complete-render wall p95 changed from 16.200 to 15.360 ms, a 5.19% decrease. Neither exceeded the 15% regression threshold for this static 10,000-row workload. This comparison does not replace the million-row, native, or sustained Linux results above.
