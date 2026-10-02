@@ -76,7 +76,7 @@ module Vanken
 
       def format_time(document, row, number, index, format, precision)
         timestamp = row.fetch(:timestamp_ns)
-        return Time.at(timestamp / 1_000_000_000, timestamp % 1_000_000_000, :nsec).strftime("%H:%M:%S.%N") if format == "absolute"
+        return Time.at(timestamp / 1_000_000_000, timestamp % 1_000_000_000, :nsec).strftime("%H:%M:%S.%#{precision}N") if format == "absolute"
         value = if format == "delta_displayed"
           previous = index.positive? && document.number_at(index - 1)
           previous ? (timestamp - document.store.metadata(previous)[:timestamp_ns]) / 1e9 : 0.0

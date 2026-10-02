@@ -64,6 +64,15 @@ RSpec.describe Vanken::UI::PacketSource do
     expect(@source.value(0, :no)).to eq("2")
   end
 
+  it "honors the selected precision for absolute timestamps" do
+    @settings["packet_list.time_format"] = "absolute"
+    @settings["packet_list.time_precision"] = "milli"
+    @source.reset
+    @source.value(0, :time)
+    @executor.finish
+    expect(@source.value(0, :time)).to match(/\A\d{2}:\d{2}:\d{2}\.123\z/)
+  end
+
   it "refreshes stable frame identities after sorting and formats displayed deltas in the background" do
     @settings["packet_list.time_format"] = "delta_displayed"
     @source.reset
