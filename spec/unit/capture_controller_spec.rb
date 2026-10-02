@@ -14,7 +14,7 @@ RSpec.describe Vanken::App::CaptureController do
     end
   end
 
-  def fake_launcher(directory, stop_message: true, startup_error: nil, close_control: false)
+  def fake_launcher(directory, stop_message: true, startup_error: nil, close_control: false, pause_before_header: false)
     capture = File.join(directory, "input.pcapng")
     write_capture(capture, [frame, frame(tcp_bytes(seq: 101, flags: 24, payload: "tail"), number: 2)])
     helper = File.join(directory, "helper.rb")
@@ -31,6 +31,7 @@ RSpec.describe Vanken::App::CaptureController do
       emit.call("started", interface: "test0", linktype: 1)
       STDERR.puts "plain log"
       STDERR.puts JSON.generate(v: 2, type: "error", message: "future version")
+      sleep 0.001 until File.exist?(#{File.join(directory, "release-header").inspect}) if #{pause_before_header}
       STDOUT.write File.binread(#{capture.inspect})
       emit.call("stats", received: 2, dropped: 1, if_dropped: 0, captured: 2)
       STDERR.reopen(File::NULL, "w") if #{close_control}
@@ -38,6 +39,27 @@ RSpec.describe Vanken::App::CaptureController do
       emit.call("stopped", reason: "stdin_closed", stats: {received: 2, dropped: 1, if_dropped: 0, captured: 2}) if #{stop_message}
     RUBY
     Vanken::Capture::Launcher.new(strategy: :direct, direct_command: [RbConfig.ruby, helper])
+  end
+
+  it "attaches the capture document before the first packet header arrives" do
+    Dir.mktmpdir do |directory|
+      documents = []
+      marker = File.join(directory, "release-header")
+      controller = described_class.new(launcher: fake_launcher(directory, pause_before_header: true),
+        on_document: ->(doc) { documents << doc })
+      controller.start(interface: "test0")
+      eventually { controller.capturing? && controller.document }
+      expect(controller.document).not_to be_nil
+      expect(documents).to eq([controller.document])
+      expect(controller.document.count).to eq(0)
+      File.write(marker, "")
+      eventually { controller.document.count == 2 }
+      controller.stop.wait(3)
+      expect(controller.state).to eq(:stopped)
+    ensure
+      File.write(marker, "") if marker
+      controller&.close
+    end
   end
 
   it "starts asynchronously, consumes controls, and drains both pending frames before stopping" do

@@ -95,10 +95,10 @@ module Vanken
           stop_helper if @stop_requested
         end
         control = thread { consume_control(handle.stderr) }
-        reader = Gateway::FileReader.new(handle.stdout)
         doc = Document.new(preferences: @preferences, on_update: @on_update)
         @mutex.synchronize { @document = doc }
         @on_document&.call(doc)
+        reader = Gateway::FileReader.new(handle.stdout)
         doc.ingest(reader, live: true)
         doc.wait
         unless control.join(3)
