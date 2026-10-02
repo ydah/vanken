@@ -5,8 +5,21 @@ module Vanken
     class FileReader
       include Enumerable[Core::Frame]
 
-      # @rbs (String | IO input) -> void
-      def initialize: (String | IO input) -> void
+      QUEUED_BYTE_LIMIT: Integer
+
+      class BufferedInput
+        # @rbs (IO input) -> void
+        def initialize: (IO input) -> void
+
+        # @rbs (Integer length) -> String?
+        def read: (Integer length) -> String?
+
+        # @rbs () -> void
+        def stop: () -> void
+      end
+
+      # @rbs (String | IO | StringIO input) -> void
+      def initialize: (String | IO | StringIO input) -> void
 
       # @rbs (?timeout: Numeric?) -> Core::Frame?
       def next_frame: (?timeout: Numeric?) -> Core::Frame?
@@ -27,6 +40,14 @@ module Vanken
 
       # @rbs () -> Redhound::Capture::Stats
       def stats: () -> Redhound::Capture::Stats
+
+      private
+
+      # @rbs () -> void
+      def pump_packets: () -> void
+
+      # @rbs (Redhound::Packet packet) -> bool
+      def reserve_bytes: (Redhound::Packet packet) -> bool
     end
   end
 end
