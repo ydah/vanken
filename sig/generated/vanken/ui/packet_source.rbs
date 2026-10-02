@@ -8,7 +8,7 @@ module Vanken
       def reset: () -> untyped
 
       # Called by posted document notifications, never once per rendered cell.
-      def refresh: () -> untyped
+      def refresh: () ?{ (?) -> untyped } -> untyped
 
       def count: () -> untyped
 
@@ -24,13 +24,17 @@ module Vanken
 
       private
 
+      def publish_counts: (untyped count, untyped packet_count) -> untyped
+
+      def refresh_tail: (untyped count, untyped packet_count, untyped size, untyped ready) -> untyped
+
       def request_row: (untyped number, untyped index) -> untyped
 
       def flush_rows: () -> untyped
 
-      def row_values: (untyped document, untyped number, untyped index, untyped format, untyped precision) -> untyped
+      def row_values: (untyped document, untyped number, untyped index, untyped format, untyped precision, ?untyped previous) -> untyped
 
-      def format_time: (untyped document, untyped row, untyped number, untyped index, untyped format, untyped precision) -> untyped
+      def format_time: (untyped document, untyped row, untyped number, untyped index, untyped format, untyped precision, ?untyped previous) -> untyped
     end
   end
 end

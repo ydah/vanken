@@ -22,13 +22,31 @@ RSpec.describe Vanken::UI::PacketSource do
     def finish = (drain; work; drain)
   end
 
+  RowUI = Struct.new(:document, :app, :preferences, :window, :table, :following) do
+    def autoscroll? = following
+  end
+
+  def prime_viewport
+    @source.value(0, :info)
+    @source.value(1, :info)
+    @executor.finish
+  end
+
+  def append_packet(number)
+    item = frame(number: number, timestamp_ns: 1_700_000_000_123_456_789 + ((number - 1) * 1_000_000))
+    @document.store.append(item)
+    @document.store.flush
+    @document.publish(number, Vanken::Gateway::Dissector.new.dissect(item))
+  end
+
   before do
     @document = Vanken::App::Document.new.ingest([frame, frame(number: 2, timestamp_ns: 1_700_000_000_124_456_789)]).wait
     @executor = RowExecutor.new
     @settings = {"packet_list.time_format" => "relative", "packet_list.time_precision" => "micro", "packet_list.row_cache_rows" => 20_000}
     preferences = double(get: nil)
     allow(preferences).to receive(:get) { |key| @settings.fetch(key) }
-    @ui = Struct.new(:document, :app, :preferences, :window).new(@document, Struct.new(:executor).new(@executor), preferences, double(request_frame: nil))
+    table = Struct.new(:body).new(Struct.new(:visible_range).new(0...2))
+    @ui = RowUI.new(@document, Struct.new(:executor).new(@executor), preferences, double(request_frame: nil), table, false)
     @source = described_class.new(@ui)
   end
 
@@ -117,6 +135,143 @@ RSpec.describe Vanken::UI::PacketSource do
     allow(@document).to receive(:row).with(2).and_call_original
     @executor.finish
     expect(@source.value(1, :info)).to be_a(String)
+  end
+
+  it "keeps the old viewport until the new count and complete tail rows can publish together" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = []
+    expect(@ui.window).not_to receive(:request_frame)
+    @source.refresh { published << [@source.count, @source.value(2, :protocol), @source.value(2, :time)] }
+    expect(@source.count).to eq(2)
+    expect(@source.value(1, :protocol)).to eq("TCP")
+    expect(published).to be_empty
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    expect(@source.count).to eq(2)
+    @executor.drain
+    expect(published).to eq([[3, "TCP", "0.002000"]])
+    expect(@executor.background_count).to eq(0)
+    expect(@executor.posted_count).to eq(0)
+  end
+
+  it "coalesces growing notifications into one pending tail refresh and one latest follow-up" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = []
+    @source.refresh { published << [:first, @source.count] }
+    (4..8).each do |number|
+      append_packet(number)
+      @source.refresh { published << [number, @source.count] }
+    end
+    expect(@source.count).to eq(2)
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    @executor.drain
+    expect(published).to eq([[:first, 3]])
+    expect(@source.count).to eq(3)
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    @executor.drain
+    expect(published).to eq([[:first, 3], [8, 8]])
+    expect(@source.value(7, :protocol)).to eq("TCP")
+    expect(@executor.background_count).to eq(0)
+    expect(@executor.posted_count).to eq(0)
+  end
+
+  it "coalesces duplicate counts into the latest callback without erasing primed displayed deltas" do
+    @settings["packet_list.time_format"] = "delta_displayed"
+    @source.reset
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = []
+    @source.refresh { published << [:first, @source.value(2, :time)] }
+    @source.refresh { published << [:latest, @source.value(2, :time)] }
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    @executor.drain
+    expect(published).to eq([[:latest, "0.001000"]])
+    expect(@source.value(2, :time)).to eq("0.001000")
+    expect(@executor.background_count).to eq(0)
+    expect(@executor.posted_count).to eq(0)
+  end
+
+  it "discards a queued tail publication after reset" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = false
+    @source.refresh { published = true }
+    expect(@executor.background_count).to eq(1)
+    @executor.work
+    @source.reset
+    @executor.drain
+    expect(published).to be(false)
+    expect(@source.count).to eq(3)
+    expect(@source.value(2, :info)).to be_nil
+  end
+
+  it "discards tail rows and their callback after changing documents" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = false
+    @source.refresh { published = true }
+    expect(@executor.background_count).to eq(1)
+    @ui.document = nil
+    @executor.finish
+    expect(published).to be(false)
+    @source.refresh
+    expect(@source.count).to eq(0)
+  end
+
+  it "publishes immediately after tail following is disabled and rejects the older tail result" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    published = []
+    @source.refresh { published << [:old, @source.count] }
+    @ui.following = false
+    append_packet(4)
+    @source.refresh { published << [:current, @source.count] }
+    expect(published).to eq([[:current, 4]])
+    @executor.finish
+    expect(published).to eq([[:current, 4]])
+    expect(@source.count).to eq(4)
+  end
+
+  it "publishes the tail count with successful rows and leaves a failed row retryable" do
+    prime_viewport
+    @ui.following = true
+    append_packet(3)
+    allow(@document).to receive(:row).and_call_original
+    allow(@document).to receive(:row).with(3).and_raise(IndexError, "transient row failure")
+    published = []
+    @source.refresh { published << [@source.count, @source.value(2, :protocol)] }
+    @executor.work
+    @executor.drain
+    expect(published).to eq([[3, nil]])
+    expect(@source.value(1, :protocol)).to eq("TCP")
+    allow(@document).to receive(:row).with(3).and_call_original
+    @executor.finish
+    expect(@source.value(2, :protocol)).to eq("TCP")
+  end
+
+  it "formats tail displayed deltas using the ordering captured before background work" do
+    @settings["packet_list.time_format"] = "delta_displayed"
+    @source.reset
+    prime_viewport
+    @ui.following = true
+    (3..8).each { |number| append_packet(number) }
+    published = []
+    @source.refresh { published << [@source.row_id(7), @source.value(7, :time)] }
+    @document.sort(:no, :desc).wait
+    @executor.work
+    @executor.drain
+    expect(published).to eq([[8, "0.001000"]])
   end
 
   it "honors the selected precision for absolute timestamps" do

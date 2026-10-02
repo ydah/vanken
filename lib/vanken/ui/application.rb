@@ -82,13 +82,16 @@ module Vanken
         @app.update(@entity) { |state, cx| yield(state); cx.notify }
       end
       def changed
-        @packet_source.refresh
-        error = document&.error || @capture.error
-        @app.update(@entity) { |state, cx| state[:error] = error; cx.notify }
-        show_error(error) if error && @last_error != error
-        if document && @pending_filter && document.complete?
-          @pending_filter = false
-          apply_filter
+        return if @closing
+        @packet_source.refresh do
+          next if @closing
+          error = document&.error || @capture.error
+          @app.update(@entity) { |state, cx| state[:error] = error; cx.notify }
+          show_error(error) if error && @last_error != error
+          if document && @pending_filter && document.complete?
+            @pending_filter = false
+            apply_filter
+          end
         end
       end
       def attach_document(value)
