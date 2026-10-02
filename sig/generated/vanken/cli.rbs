@@ -1,0 +1,9 @@
+# Generated from lib/vanken/cli.rb with RBS::Inline
+
+module Vanken
+  module CLI
+    def self.start: (untyped argv, ?out: untyped, ?err: untyped) -> untyped
+
+    def self.print_columns: (untyped options, untyped out) -> untyped
+  end
+end

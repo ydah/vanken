@@ -1,0 +1,49 @@
+# Generated from lib/vanken/config/preferences.rb with RBS::Inline
+
+module Vanken
+  module Config
+    module Paths
+      def self.config: () -> untyped
+
+      def self.state: () -> untyped
+    end
+
+    class Preferences
+      DEFAULTS: untyped
+
+      attr_reader warning: untyped
+
+      attr_reader directory: untyped
+
+      def initialize: (?directory: untyped) -> untyped
+
+      def get: (untyped path) -> untyped
+
+      def set: (untyped path, untyped value) -> untyped
+
+      def history: () -> untyped
+
+      def recent_files: () -> untyped
+
+      def bookmarks: () -> untyped
+
+      def remember_filter: (untyped expression) -> untyped
+
+      def remember_file: (untyped path) -> untyped
+
+      def bookmark: (untyped name, untyped expression) -> untyped
+
+      def save: () -> untyped
+
+      private
+
+      def remember: (untyped key, untyped value, untyped limit) -> untyped
+
+      def merge: (untyped base, untyped saved) -> untyped
+
+      def validate: () -> untyped
+
+      def validate_shape: (untyped default, untyped value) -> untyped
+    end
+  end
+end

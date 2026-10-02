@@ -1,0 +1,18 @@
+# Generated from lib/vanken/errors.rb with RBS::Inline
+
+module Vanken
+  class Error < StandardError
+  end
+
+  class FileError < Error
+  end
+
+  class CaptureError < Error
+  end
+
+  class ConfigError < Error
+  end
+
+  class FilterError < Error
+  end
+end

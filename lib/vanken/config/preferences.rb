@@ -4,6 +4,7 @@
 require "yaml"
 require "fileutils"
 require "logger"
+require "tempfile"
 
 module Vanken
   module Config
@@ -70,11 +71,16 @@ module Vanken
       end
       def save
         FileUtils.mkdir_p(@directory, mode: 0o700)
-        temporary = File.join(@directory, "preferences-#{Process.pid}.tmp")
-        File.open(temporary, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |io| io.write(YAML.dump(@values)); io.flush; io.fsync }
-        File.rename(temporary, File.join(@directory, "preferences.yml"))
+        File.chmod(0o700, @directory)
+        temporary = Tempfile.create(["preferences-", ".tmp"], @directory)
+        temporary.write(YAML.dump(@values))
+        temporary.flush
+        temporary.fsync
+        temporary.close
+        File.rename(temporary.path, File.join(@directory, "preferences.yml"))
       ensure
-        File.unlink(temporary) if temporary && File.exist?(temporary)
+        temporary&.close unless temporary&.closed?
+        File.unlink(temporary.path) if temporary && File.exist?(temporary.path)
       end
 
       private
@@ -90,12 +96,30 @@ module Vanken
         end
       end
       def validate
+        validate_shape(DEFAULTS, @values)
         raise Vanken::ConfigError, "invalid theme" unless %w[system dark light high_contrast].include?(get("appearance.theme"))
         raise Vanken::ConfigError, "invalid font size" unless get("appearance.font_size").is_a?(Integer) && get("appearance.font_size").between?(8, 32)
         raise Vanken::ConfigError, "invalid time format" unless %w[relative absolute delta delta_displayed epoch].include?(get("packet_list.time_format"))
-        raise Vanken::ConfigError, "invalid history" unless history.all? { |item| item.is_a?(String) } && recent_files.all? { |item| item.is_a?(String) } && bookmarks.is_a?(Hash)
+        raise Vanken::ConfigError, "invalid time precision" unless %w[milli micro nano].include?(get("packet_list.time_precision"))
+        raise Vanken::ConfigError, "invalid history" unless history.all? { |item| item.is_a?(String) } && recent_files.all? { |item| item.is_a?(String) } && bookmarks.all? { |name, expression| name.is_a?(String) && expression.is_a?(String) }
+        {"analysis.workers" => 1..32, "analysis.max_state_mib" => 1..65_536, "analysis.max_flows" => 1..10_000_000,
+          "capture.snaplen" => 1..16_777_216, "capture.buffer_size" => 65_536..268_435_456,
+          "packet_list.row_cache_rows" => 1..100_000, "layout.width" => 320..65_536, "layout.height" => 240..65_536}.each do |path, range|
+          raise Vanken::ConfigError, "invalid #{path}" unless range.cover?(get(path))
+        end
+        raise Vanken::ConfigError, "invalid split ratios" unless get("layout.ratios").size == 2 && get("layout.ratios").all? { |ratio| ratio.is_a?(Numeric) && ratio.finite? && ratio.between?(0.1, 0.9) }
+        columns = get("layout.columns")
+        raise Vanken::ConfigError, "invalid columns" unless columns.all? { |column| column.is_a?(Hash) && %w[no time source destination protocol length info].include?(column["key"]) && column["width"].is_a?(Numeric) && column["width"].finite? && column["width"].between?(40, 4096) && [true, false].include?(column["visible"]) } && columns.map { |column| column["key"] }.uniq.size == columns.size
+        raise Vanken::ConfigError, "invalid capture settings" unless %w[auto direct sudo pkexec].include?(get("capture.launcher")) && %w[auto ring socket bpf].include?(get("capture.backend")) && %w[in out inout].include?(get("capture.direction"))
       rescue NoMethodError, KeyError
         raise Vanken::ConfigError, "invalid preferences shape"
+      end
+      def validate_shape(default, value)
+        valid = [true, false].include?(default) ? [true, false].include?(value) : value.is_a?(default.class)
+        raise Vanken::ConfigError, "invalid preferences shape" unless valid
+        if default.is_a?(Hash)
+          default.each { |key, expected| validate_shape(expected, value.fetch(key)) }
+        end
       end
     end
   end

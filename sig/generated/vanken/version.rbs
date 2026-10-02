@@ -1,0 +1,5 @@
+# Generated from lib/vanken/version.rb with RBS::Inline
+
+module Vanken
+  VERSION: ::String
+end

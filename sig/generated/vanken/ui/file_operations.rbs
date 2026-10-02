@@ -1,0 +1,25 @@
+# Generated from lib/vanken/ui/file_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module FileOperations
+      CAPTURE_FILTERS: untyped
+
+      def open_dialog: () -> untyped
+
+      def open_file: (untyped path) -> untyped
+
+      def save_dialog: (?after: untyped) -> untyped
+
+      def save_file: (untyped path, ?after: untyped) -> untyped
+
+      def close_document: () -> untyped
+
+      def reload_file: () -> untyped
+
+      def request_destructive: () ?{ (?) -> untyped } -> untyped
+
+      def discard_changes: () -> untyped
+    end
+  end
+end

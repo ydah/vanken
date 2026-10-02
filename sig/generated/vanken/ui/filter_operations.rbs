@@ -1,0 +1,33 @@
+# Generated from lib/vanken/ui/filter_operations.rb with RBS::Inline
+
+module Vanken
+  module UI
+    class CompletionProvider
+      def initialize: (untyped ui) -> untyped
+
+      def complete: (untyped text, untyped caret) -> untyped
+    end
+
+    module FilterOperations
+      def set_filter: (untyped text) -> untyped
+
+      def validate_filter: (untyped text) -> untyped
+
+      def apply_filter: () -> untyped
+
+      def initial_filter: (untyped text) -> untyped
+
+      def clear_filter: () -> untyped
+
+      def filter_from_selection: (?untyped mode, ?prepare: untyped) -> untyped
+
+      def filter_from_expression: (untyped expression, ?untyped mode, ?prepare: untyped) -> untyped
+
+      def selection_menu: (untyped expression) -> untyped
+
+      def bookmark_filter: () -> untyped
+
+      def filter_history: () -> untyped
+    end
+  end
+end

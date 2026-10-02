@@ -28,4 +28,14 @@ RSpec.describe "Safe preferences" do
       end
     end
   end
+
+  [{"analysis" => {"workers" => 0}}, {"layout" => {"columns" => [{"key" => "no", "width" => -1, "visible" => true}]}},
+   {"packet_list" => {"time_precision" => "invalid"}}, {"appearance" => []}, {"history" => {}}].each do |change|
+    it "rejects unsafe configuration shapes and bounded settings #{change.inspect}" do
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "preferences.yml"), YAML.dump({"schema_version" => 1}.merge(change)))
+        expect(Vanken::Config::Preferences.new(directory: directory).warning).not_to be_nil
+      end
+    end
+  end
 end

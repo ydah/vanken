@@ -1,0 +1,21 @@
+# Generated from lib/vanken/ui/dialogs.rb with RBS::Inline
+
+module Vanken
+  module UI
+    module Dialogs
+      def dialog: () -> untyped
+
+      def dismiss_dialog: () -> untyped
+
+      def show_dialog: (untyped kind, untyped title, untyped content) -> untyped
+
+      def path_dialog: (untyped title) ?{ (?) -> untyped } -> untyped
+
+      def capture_options: (?interface: untyped) -> untyped
+
+      def preferences_dialog: () -> untyped
+
+      def columns_dialog: () -> untyped
+    end
+  end
+end

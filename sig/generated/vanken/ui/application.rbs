@@ -1,0 +1,85 @@
+# Generated from lib/vanken/ui/application.rb with RBS::Inline
+
+module Vanken
+  module UI
+    class Application
+      attr_reader app: untyped
+
+      attr_reader window: untyped
+
+      attr_reader preferences: untyped
+
+      attr_reader table: untyped
+
+      attr_reader tree: untyped
+
+      attr_reader hex: untyped
+
+      attr_reader filter_field: untyped
+
+      attr_reader capture: untyped
+
+      attr_reader dialog_kind: untyped
+
+      attr_reader packet_source: untyped
+
+      attr_reader interface_infos: untyped
+
+      def initialize: (?backend: untyped, ?preferences: untyped, ?debug: untyped) -> untyped
+
+      def document: () -> untyped
+
+      def selected_number: () -> untyped
+
+      def selected_node: () -> untyped
+
+      def detail_nodes: () -> untyped
+
+      def selected_bytes: () -> untyped
+
+      def update: () -> untyped
+
+      def changed: () -> untyped
+
+      def attach_document: (untyped value) -> untyped
+
+      def run: () -> untyped
+
+      def native?: () -> untyped
+
+      def monospace_font: () -> untyped
+
+      def install_panes: (untyped table, untyped tree, untyped hex) -> untyped
+
+      def filter_pool: () -> untyped
+
+      def smoke: () -> untyped
+
+      def close: () -> untyped
+
+      def quit: () -> untyped
+
+      def change_theme: (untyped name, ?persist: untyped) -> untyped
+
+      def zoom: (?untyped delta) -> untyped
+
+      def time_format: (untyped name) -> untyped
+
+      def toggle_autoscroll: () -> untyped
+
+      def autoscroll?: () -> untyped
+
+      def capture_toggle: () -> untyped
+
+      def start_capture: (untyped options) -> untyped
+
+      def restart_capture: () -> untyped
+
+      def status_text: () -> untyped
+
+      def copy_text: (untyped text) -> untyped
+
+      def show_error: (untyped error) -> untyped
+    end
+  end
+end
