@@ -4,7 +4,7 @@ PATH
     vanken (0.2.0)
       fiddle (~> 1.1)
       redhound (= 2.0.0.rc2)
-      zaniah (~> 0.12.3)
+      zaniah (~> 0.12.4)
 
 GEM
   remote: https://rubygems.org/
@@ -131,7 +131,7 @@ GEM
       unicode-emoji (~> 4.3)
     unicode-emoji (4.3.0)
     uri (1.1.1)
-    zaniah (0.12.3)
+    zaniah (0.12.4)
       alhena (>= 0.2.0, < 0.4.0)
       rexml (~> 3.4)
       unicode-display_width (~> 3.2)
@@ -225,7 +225,7 @@ CHECKSUMS
   unicode-emoji (4.3.0) sha256=11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
   vanken (0.2.0)
-  zaniah (0.12.3) sha256=d4cbe037348e4a50608922c73cf5013878af908520fc409042007c4f1066d891
+  zaniah (0.12.4) sha256=96d99cfa09879b6a65c116ebac586b9897d2ddcfe40445307739d83d0fdee871
 
 BUNDLED WITH
   4.0.20
