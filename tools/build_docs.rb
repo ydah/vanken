@@ -21,12 +21,11 @@ pages = [
   {source: "docs/usage.md", path: "docs/usage.html", title: "User guide", group: "Using Vanken", lead: "Inspect packets, follow streams, export results, and make the workspace your own."},
   {source: "docs/filters.md", path: "docs/filters.html", title: "Display filters", group: "Using Vanken", lead: "Find traffic with protocol fields, addresses, expressions, and typed values."},
   {source: "packaging/README.md", path: "docs/capture-permissions.html", title: "Capture permissions", group: "Using Vanken", lead: "Set up Linux or macOS capture access while running Vanken as your regular user."},
-  {source: "docs/performance.md", path: "docs/performance.html", title: "Measurements and limits", group: "Reference", lead: "Recorded workloads, measurement boundaries, and current performance constraints."},
-  {source: "docs/upstream.md", path: "docs/development.html", title: "Development", group: "Reference", lead: "Dependencies, upstream contracts, and component integration."},
-  {source: "docs/releases.md", path: "docs/releases.html", title: "Releases", group: "Reference", lead: "How Vanken versions are checked, packaged, and published."}
+  {source: "docs/performance.md", path: "docs/performance.html", title: "Performance and limits", group: "Using Vanken", lead: "Handle large captures, analysis backlogs, and bounded views."},
+  {source: "docs/development.md", path: "docs/development.html", title: "Development", group: "Developers", lead: "Set up a checkout, run checks, understand the pipeline, and maintain the documentation."}
 ]
 destinations = pages.to_h { |page| [page[:source], page[:path]] }.merge("README.md" => "index.html")
-template = ERB.new(File.read(File.join(ROOT, "docs/_templates/page.erb")), trim_mode: "-")
+template = ERB.new(File.read(File.join(ROOT, "tools/doc_page.erb")), trim_mode: "-")
 html_pages = {"index.html" => File.read(File.join(ROOT, "index.html"))}
 
 pages.each_with_index do |page, index|
@@ -78,6 +77,7 @@ html_pages.each do |path, html|
 end
 
 unless CHECK
+  FileUtils.rm_rf(OUTPUT)
   html_pages.each do |path, html|
     output = File.join(OUTPUT, path)
     FileUtils.mkdir_p(File.dirname(output))

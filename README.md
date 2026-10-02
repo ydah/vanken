@@ -103,17 +103,17 @@ keyboard controls, stream and export limits, and recovery.
 Live acquisition can outpace analysis on slower systems. Captured packets are
 stored while queued analysis finishes, but throughput, redraw latency, and
 memory targets remain unmet in some measured workloads. See the
-[performance reports](https://ydah.github.io/vanken/docs/performance.html) for
-test conditions, results, and current limits.
+[performance guide](https://ydah.github.io/vanken/docs/performance.html) for
+handling large captures and understanding the current limits.
 
 ## Documentation
 
 - [User Guide](https://ydah.github.io/vanken/docs/)
 - [Display filters](https://ydah.github.io/vanken/docs/filters.html)
 - [Capture permissions](https://ydah.github.io/vanken/docs/capture-permissions.html)
-- [Performance measurements](https://ydah.github.io/vanken/docs/performance.html)
-- [Development](https://ydah.github.io/vanken/docs/development.html) and [dependency contracts](docs/upstream.md)
-- [Release procedure](https://ydah.github.io/vanken/docs/releases.html) and [changelog](CHANGELOG.md)
+- [Performance and limits](https://ydah.github.io/vanken/docs/performance.html)
+- [Development](https://ydah.github.io/vanken/docs/development.html)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

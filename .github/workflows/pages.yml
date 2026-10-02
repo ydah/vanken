@@ -2,9 +2,9 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ['index.html', 'site.css', 'assets/fonts/**', 'docs/**', 'packaging/README.md', 'tools/build_docs.rb', 'Gemfile', 'Gemfile.lock', '.github/workflows/pages.yml']
+    paths: ['index.html', 'site.css', 'assets/fonts/**', 'docs/**', 'packaging/README.md', 'tools/**', 'Gemfile', 'Gemfile.lock', '.github/workflows/pages.yml']
   pull_request:
-    paths: ['index.html', 'site.css', 'assets/fonts/**', 'docs/**', 'packaging/README.md', 'tools/build_docs.rb', 'Gemfile', 'Gemfile.lock', '.github/workflows/pages.yml']
+    paths: ['index.html', 'site.css', 'assets/fonts/**', 'docs/**', 'packaging/README.md', 'tools/**', 'Gemfile', 'Gemfile.lock', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions: {}
 concurrency:

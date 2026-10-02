@@ -97,4 +97,4 @@ vanken --headless --read capture.pcapng --print-columns --filter 'frame.number <
 
 This prints the standard column header and the first ten packet numbers, or fewer for a smaller capture. Run `vanken --help` for the available command-line options.
 
-Continue with the [user guide](usage.md) for searching, stream reconstruction, statistics, custom columns, profiles, and recovery. The [performance page](performance.md) records tested workloads and current limitations.
+Continue with the [user guide](usage.md) for searching, stream reconstruction, statistics, custom columns, profiles, and recovery. See [performance and limits](performance.md) for handling large or busy captures.

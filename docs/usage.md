@@ -115,7 +115,7 @@ Stop acquisition and finish file loading before changing profiles, Decode As rul
 
 **Analyze → Decode As** selects a protocol for a selector such as `udp.port==8443,dns`. Enter multiple rules separated by semicolons, then choose **Apply**. These rules change how summaries, details, filters, and statistics interpret the original bytes. Remove a rule from the dialog and apply again to return to normal protocol selection.
 
-**Analyze → Dissector plugins** registers Ruby dissector files. Choose **Add**, enter the file path, and confirm trust before its first load. Plugins execute Ruby code with your account's permissions; load only files whose contents you trust. After editing or removing a registered file, choose **Reload plugins** to rebuild the current analysis. Plugin files and trust are kept per profile. See [upstream contracts](upstream.md) for the dissector integration.
+**Analyze → Dissector plugins** registers Ruby dissector files. Choose **Add**, enter the file path, and confirm trust before its first load. Plugins execute Ruby code with your account's permissions; load only files whose contents you trust. After editing or removing a registered file, choose **Reload plugins** to rebuild the current analysis. Plugin files and trust are kept per profile. The [development guide](development.md#find-the-right-layer) links a working plugin example.
 
 Reanalysis keeps the original bytes, marks, ignored packets, time references, and current selection, then refreshes summaries, details, and filters. Analysis preferences changed during capture or file loading wait until it finishes.
 
@@ -139,7 +139,7 @@ Configuration uses schema version 1, safe YAML, and atomic saves. Logs rotate an
 
 After an interrupted capture, the next start offers recovery or discard for owned, inactive session directories. **Recover** rebuilds analysis from the retained raw frames. The recovered capture remains unsaved until you save it. Sessions still used by a running process are excluded. If recovery fails, the raw session remains available for another attempt.
 
-For very large or busy captures, see [performance measurements](performance.md). Live acquisition can outpace analysis, and shared-runner UI and selection latency remain above some design targets. The documented stream, custom-column, and I/O graph limits above bound their displayed results.
+For very large or busy captures, see [performance and limits](performance.md). The documented stream, custom-column, and I/O graph limits above bound their displayed results.
 
 ## Keyboard and terminal operation
 
