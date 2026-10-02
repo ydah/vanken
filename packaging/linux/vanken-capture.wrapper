@@ -1,0 +1,6 @@
+#!/bin/sh
+cd / || exit 1
+exec /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  GEM_HOME=VANKEN_GEM_HOME GEM_PATH=VANKEN_GEM_HOME \
+  VANKEN_RUBY -I /usr/local/libexec/vanken/lib \
+  /usr/local/libexec/vanken/helper "$@"

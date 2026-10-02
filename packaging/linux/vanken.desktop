@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Vanken
+Comment=Capture and inspect network packets
+Exec=vanken %f
+Icon=network-workgroup
+Terminal=false
+Categories=Network;Development;
+MimeType=application/vnd.tcpdump.pcap;application/x-pcapng;

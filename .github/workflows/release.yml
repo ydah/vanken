@@ -29,7 +29,9 @@ jobs:
       - name: Test and build
         run: |
           bundle exec rake
-          gem build --strict vanken.gemspec --output /tmp/vanken.gem
+          version="${GITHUB_REF_NAME#v}"
+          gem build --strict vanken.gemspec --output "$RUNNER_TEMP/vanken-$version.gem"
+          tar -czf "$RUNNER_TEMP/vanken-$version-packaging.tar.gz" packaging
       - name: Check whether the gem was already published
         id: published
         run: |
@@ -54,4 +56,8 @@ jobs:
             END { if (!found) exit 1 }
           ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
           grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"
+          curl -fLS --retry 3 --max-time 60 "https://rubygems.org/downloads/vanken-$version.gem" \
+            -o "$RUNNER_TEMP/vanken-$version.gem"
+          gh release create "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/vanken-$version.gem" "$RUNNER_TEMP/vanken-$version-packaging.tar.gz" \
+            --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"

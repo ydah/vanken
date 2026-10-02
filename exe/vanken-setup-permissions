@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "vanken/capture/permission_setup"
+
+exit Vanken::Capture::PermissionSetup.run(ARGV)

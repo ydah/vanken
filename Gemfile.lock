@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    vanken (0.2.0)
+    vanken (0.3.0)
       fiddle (~> 1.1)
       redhound (= 2.0.0.rc2)
       zaniah (~> 0.12.4)
@@ -224,7 +224,7 @@ CHECKSUMS
   unicode-display_width (3.3.0) sha256=4b7aa66a4b11db50f6f7e98411215cd0dd10eaecb665d36eec5bcacb3fa0b613
   unicode-emoji (4.3.0) sha256=11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
-  vanken (0.2.0)
+  vanken (0.3.0)
   zaniah (0.12.4) sha256=96d99cfa09879b6a65c116ebac586b9897d2ddcfe40445307739d83d0fdee871
 
 BUNDLED WITH

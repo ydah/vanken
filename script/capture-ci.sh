@@ -23,27 +23,16 @@ gem install --no-document rspec --version '~> 3.13'
 gem install --no-document zaniah --version '~> 0.12.4'
 gem install --no-document fiddle --version '~> 1.1'
 
-install -d -m 0755 /opt/vanken-tests /usr/local/libexec/vanken
-cp -R /workspace/lib /workspace/spec /workspace/exe /workspace/script /workspace/data /workspace/.rspec /opt/vanken-tests/
-cp -R /opt/vanken-tests/lib /usr/local/libexec/vanken/lib
-cp /opt/vanken-tests/exe/vanken-capture /usr/local/libexec/vanken/helper
-cat > /usr/local/libexec/vanken/vanken-capture <<'WRAPPER'
-#!/bin/sh
-exec /usr/bin/env -i PATH=/usr/local/bin:/usr/bin:/bin \
-  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
-  /usr/local/bin/ruby -I /usr/local/libexec/vanken/lib \
-  /usr/local/libexec/vanken/helper "$@"
-WRAPPER
-chmod 0755 /usr/local/libexec/vanken/vanken-capture
-chown -R root:root /usr/local/libexec/vanken /usr/local/bundle
-chmod -R go-w /usr/local/libexec/vanken /usr/local/bundle
-
+install -d -m 0755 /opt/vanken-tests
+cp -R /workspace/lib /workspace/spec /workspace/exe /workspace/script /workspace/packaging /workspace/data /workspace/.rspec /opt/vanken-tests/
+chown -R root:root /opt/vanken-tests /usr/local
+chmod -R go-w /opt/vanken-tests /usr/local
 useradd --create-home --uid 1000 --user-group vanken-ci
 chown vanken-ci:vanken-ci /reports
 chmod 0755 /reports
-printf '%s\n' 'vanken-ci ALL=(root) NOPASSWD: /usr/local/libexec/vanken/vanken-capture' > /etc/sudoers.d/vanken-capture-ci
-chmod 0440 /etc/sudoers.d/vanken-capture-ci
-visudo -cf /etc/sudoers.d/vanken-capture-ci
+/usr/local/bin/ruby -I/opt/vanken-tests/lib /opt/vanken-tests/exe/vanken-setup-permissions \
+  --platform linux --ruby /usr/local/bin/ruby --gem-home /usr/local/bundle \
+  --policy sudoers --group vanken-ci > /reports/permission-install.json
 cp -R /opt/vanken-tests /home/vanken-ci/tests
 chown -R vanken-ci:vanken-ci /home/vanken-ci/tests
 
@@ -60,7 +49,10 @@ trap cleanup EXIT
 cd /home/vanken-ci/tests
 runuser -u vanken-ci -- env VANKEN_NETNS=1 GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
   /usr/local/bin/ruby -Ilib -S rspec spec/unit/capture spec/unit/capture_controller_spec.rb \
-  spec/contract/capture_spec.rb spec/integration/capture_spec.rb spec/unit/capture_performance_spec.rb
+  spec/contract/capture_spec.rb spec/integration/capture_spec.rb spec/integration/permission_install_spec.rb spec/integration/tui_spec.rb spec/unit/capture_performance_spec.rb
+runuser -u vanken-ci -- env VANKEN_TUI_REPORTS=/reports/tui VANKEN_TUI_CAPTURE_INTERFACE=vkn-host \
+  GEM_HOME=/usr/local/bundle GEM_PATH=/usr/local/bundle:/usr/local/lib/ruby/gems/3.4.0 \
+  /usr/local/bin/ruby --yjit -Ilib script/tui-smoke.rb
 
 export VANKEN_CAPTURE_REPORTS=/reports
 ip netns exec vanken-test /usr/local/bin/ruby script/capture-performance.rb --send &

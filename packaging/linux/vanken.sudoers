@@ -1,0 +1,2 @@
+# Members of this group can inspect network traffic. Validate with visudo -cf.
+%VANKEN_GROUP ALL=(root) NOPASSWD: /usr/local/libexec/vanken/vanken-capture

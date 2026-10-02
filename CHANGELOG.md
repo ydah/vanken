@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Add `vanken-setup-permissions` to install Linux capture wrappers and polkit or sudoers policies, and configure macOS BPF access through a LaunchDaemon. Installation validates privileged runtime and destination ownership before granting access.
+- Include the Linux desktop entry, capture policies, fixed-path wrappers, and macOS setup files in the gem and downloadable GitHub release assets.
+
+Requires Ruby 3.3 or newer. Live capture supports Linux and macOS; Windows supports file inspection. See [capture permissions](https://github.com/ydah/vanken/blob/main/packaging/README.md).
+
+Live acquisition and redraw latency on slower systems retain the [documented performance limits](https://github.com/ydah/vanken/blob/main/docs/performance.md).
+
 ## 0.2.0
 
 - Add editable packet coloring, four search modes, marks, ignored packets, time references, and conversation navigation.

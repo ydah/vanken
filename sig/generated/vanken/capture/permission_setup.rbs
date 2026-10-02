@@ -1,0 +1,43 @@
+# Generated from lib/vanken/capture/permission_setup.rb with RBS::Inline
+
+module Vanken
+  module Capture
+    class PermissionSetup
+      PREFIX: ::String
+
+      SOURCE: untyped
+
+      def self.run: (untyped argv, ?stdout: untyped, ?stderr: untyped) -> untyped
+
+      attr_reader platform: untyped
+
+      def initialize: (?platform: untyped, ?ruby: untyped, ?gem_home: untyped, ?policy: untyped, ?group: untyped, ?root: untyped) -> untyped
+
+      def staged?: () -> untyped
+
+      def plan: () -> untyped
+
+      def install: () -> untyped
+
+      def validate_runtime!: () -> untyped
+
+      def validate_group!: () -> untyped
+
+      def next_steps: () -> untyped
+
+      private
+
+      def asset: (untyped relative, ?mode: untyped) -> untyped
+
+      def trusted_tree!: (untyped path, ?untyped visited) -> untyped
+
+      def trusted_path!: (untyped path) -> untyped
+
+      def safe_entry!: (untyped path) -> untyped
+
+      def secure_directory!: (untyped path) -> untyped
+
+      def validate_sudoers!: (untyped path) -> untyped
+    end
+  end
+end

@@ -67,6 +67,8 @@ bundle exec exe/vanken-capture --check --interface lo
 
 Direct acquisition works when the account already has permission. Privileged launching requires a root-owned installation with a fixed interpreter and dependencies; see [capture helper setup](packaging/README.md). Run the desktop application as a regular user.
 
+The gem includes `vanken-setup-permissions` for administrator installation of Linux capture permissions and the macOS BPF LaunchDaemon. Review the platform-specific setup guide and the command's `--dry-run` output first. GitHub releases also include the permission policies, desktop entry, wrappers, and macOS script in a packaging archive.
+
 ## Command line
 
 ```sh

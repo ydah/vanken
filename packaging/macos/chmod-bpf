@@ -1,0 +1,6 @@
+#!/bin/sh
+for device in /dev/bpf[0-9]*; do
+  [ -c "$device" ] || continue
+  /usr/bin/chgrp VANKEN_GROUP "$device" || exit 1
+  /bin/chmod 660 "$device" || exit 1
+done
