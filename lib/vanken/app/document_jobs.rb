@@ -7,11 +7,18 @@ module Vanken
       def apply_filter(expression)
         program = Core::DisplayFilter.compile(expression, catalog: @catalog)
         cancel_scan
+        if expression.empty?
+          @mutex.synchronize do
+            @filter = @filter_context = @display = @progress = @filter_job = nil
+          end
+          notify(force: true)
+          return self
+        end
         generation, limit, snapshot = @mutex.synchronize do
-          context = filter_snapshot
-          @filter = expression.empty? ? nil : program
+          context = filter_snapshot(displayed_delta: program.fields.include?("frame.time_delta_displayed"))
+          @filter = program
           @filter_context = context
-          @display = expression.empty? ? nil : []
+          @display = []
           @progress = 0.0
           [@generation, @count, context]
         end
@@ -20,7 +27,7 @@ module Vanken
             path = @mutex.synchronize { @annotations.snapshot(File.join(@store.directory, "annotations-#{generation}.json")) }
             snapshot = snapshot.merge(annotations_json: path).freeze
           end
-          result = []
+          historical_cursor = 0
           ranges = (1..limit).step(10_000).map { |first| [first, [first + 10_000, limit + 1].min] }
           ranges.each_slice(@scanner && !program.fast? ? @scan_concurrency : 1) do |window|
             break if stale_job?(generation)
@@ -41,10 +48,11 @@ module Vanken
               break if stale_job?(generation)
               value = task.respond_to?(:await) ? task.await : task
               break if stale_job?(generation)
-              result.concat(value.fetch("matches"))
+              matches = value.fetch("matches")
               @mutex.synchronize do
                 next if generation != @generation
-                @display = result.dup + @display.select { |number| number > limit } unless expression.empty?
+                @display[historical_cursor, 0] = matches
+                historical_cursor += matches.length
                 @progress = (last - 1).fdiv([limit, 1].max)
               end
               notify
@@ -52,7 +60,6 @@ module Vanken
           end
           @mutex.synchronize do
             next if generation != @generation
-            @display = expression.empty? ? nil : result + @display.select { |number| number > limit }
             @filter_context = nil
             @progress = nil
             @filter_tasks.clear
@@ -91,9 +98,12 @@ module Vanken
       end
 
       def filter_payload(first, last, expression: @filter&.expression || "", snapshot: nil)
-        snapshot ||= @mutex.synchronize do
-          @snapshot_sequence = (@snapshot_sequence || 0) + 1
-          filter_snapshot.merge(annotations_json: @annotations.snapshot(File.join(@store.directory, "annotations-#{@generation}-#{@snapshot_sequence}.json")))
+        unless snapshot
+          displayed_delta = Core::DisplayFilter.compile(expression, catalog: @catalog).fields.include?("frame.time_delta_displayed")
+          snapshot = @mutex.synchronize do
+            @snapshot_sequence = (@snapshot_sequence || 0) + 1
+            filter_snapshot(displayed_delta: displayed_delta).merge(annotations_json: @annotations.snapshot(File.join(@store.directory, "annotations-#{@generation}-#{@snapshot_sequence}.json")))
+          end
         end
         predecessors = (first...last).to_h { |number| [number.to_s, displayed_predecessor(number, snapshot)] }
         {"spool" => @store.directory, "expr" => expression, "from" => first, "to" => last,
@@ -176,9 +186,10 @@ module Vanken
 
       private
       def stale_job?(generation) = @closing || generation != @generation
-      def filter_snapshot
+      def filter_snapshot(displayed_delta: true)
+        predecessors = @display.each_with_index.to_h { |number, index| [number, index.zero? ? 0 : @display[index - 1]] }.freeze if displayed_delta && @display
         {marked: @marked.dup.freeze, ignored: @ignored.dup.freeze, references: @time_references.dup.freeze,
-         predecessors: @display&.each_with_index&.to_h { |number, index| [number, index.zero? ? 0 : @display[index - 1]] }&.freeze,
+         predecessors: predecessors,
          limit: @count, last_displayed: @display ? @display.last : @count}.freeze
       end
     end

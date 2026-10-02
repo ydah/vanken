@@ -7,11 +7,17 @@ module Vanken
       def complete(text, caret)
         before = text.byteslice(0, caret)
         prefix = before[/[a-zA-Z_][\w.]*\z/] || ""
-        return nil if prefix.empty?
+        items = []
+        if caret == text.bytesize && before == prefix
+          saved = @ui.preferences.bookmarks.to_a + @ui.preferences.history.map { |expression| [expression, expression] }
+          items = saved.select { |label, expression| label.start_with?(prefix) || expression.start_with?(prefix) }
+            .map { |label, expression| {label: label, insert_text: expression} }
+        end
         names = @ui.document&.catalog&.names || Gateway::FieldCatalog.new.names
         names += %w[frame.number frame.len frame.cap_len frame.time_relative frame.marked tcp.stream tcp.port udp.port ip.addr ipv6.addr expert.severity expert.code and or not contains matches in]
-        items = names.uniq.grep(/^#{Regexp.escape(prefix)}/).first(40).map { |name| {label: name} }
-        Zaniah::UI::Completion.new(range: (caret - prefix.bytesize)...caret, items: items)
+        items += names.uniq.grep(/^#{Regexp.escape(prefix)}/).map { |name| {label: name} } unless prefix.empty?
+        return nil if items.empty?
+        Zaniah::UI::Completion.new(range: (caret - prefix.bytesize)...caret, items: items.first(40))
       end
     end
 

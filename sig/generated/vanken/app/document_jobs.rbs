@@ -21,7 +21,7 @@ module Vanken
 
       def stale_job?: (untyped generation) -> untyped
 
-      def filter_snapshot: () -> untyped
+      def filter_snapshot: (?displayed_delta: untyped) -> untyped
     end
   end
 end
