@@ -82,6 +82,7 @@ module Vanken
         @app.update(@entity) { |state, cx| yield(state); cx.notify }
       end
       def changed
+        @packet_source.refresh
         error = document&.error || @capture.error
         @app.update(@entity) { |state, cx| state[:error] = error; cx.notify }
         show_error(error) if error && @last_error != error
@@ -185,7 +186,7 @@ module Vanken
         return "キャプチャファイルを開くか、インタフェースを選んで開始してください" unless doc
         dropped = @capture.stats.fetch("dropped", @capture.stats.fetch(:dropped, 0))
         total = doc.store.durable_count
-        "#{doc.loading? ? '読み込み中' : 'パケット'} #{doc.count} / #{total}   表示 #{doc.displayed_count}   ドロップ #{dropped}#{doc.progress ? "   #{(doc.progress * 100).round}%" : ''}"
+        "#{doc.loading? ? '読み込み中' : 'パケット'} #{@packet_source.packet_count} / #{total}   表示 #{@packet_source.count}   ドロップ #{dropped}#{doc.progress ? "   #{(doc.progress * 100).round}%" : ''}"
       end
       def copy_text(text) = @window.write_clipboard([Zaniah::Clipboard::Item.new({"text/plain" => text})])
       def show_error(error)

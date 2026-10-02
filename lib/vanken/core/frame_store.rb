@@ -39,7 +39,8 @@ module Vanken
       # @rbs () -> Integer
       def count = @mutex.synchronize { @index.bytesize / RECORD_SIZE }
       # @rbs () -> Integer
-      def durable_count = @mutex.synchronize { @durable_count }
+      # Published only after both files flush; reading the immutable count must not wait for writer IO.
+      def durable_count = @durable_count
 
       # @rbs (Frame frame) -> Integer
       def append(frame)

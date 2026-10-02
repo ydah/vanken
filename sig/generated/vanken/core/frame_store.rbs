@@ -21,6 +21,7 @@ module Vanken
       def count: () -> Integer
 
       # @rbs () -> Integer
+      # Published only after both files flush; reading the immutable count must not wait for writer IO.
       def durable_count: () -> Integer
 
       # @rbs (Frame frame) -> Integer

@@ -41,6 +41,7 @@ module Vanken
       def build(cx)
         ui = @ui
         doc = ui.document
+        doc.frame_latency = cx.window.frame_stats.fetch(:frame_ms, 0) / 1000 if doc
         height = [cx.window.content_size.height - 132, 120].max
         table_height = [height * @split.ratio, 48].max
         lower_height = [(height * (1 - @split.ratio)) - 32, 32].max
@@ -53,16 +54,16 @@ module Vanken
         end
         root = Zaniah::Div.new.w_full.h_full.flex_col.bg(cx.theme.colors.background)
         root.child(Zaniah::UI::MenuBar.from(ui.app.menu_bar)) unless RUBY_PLATFORM.include?("darwin") && ui.native?
-        toolbar = Zaniah::UI::Toolbar.new(
+        toolbar_items = [
           button("開く", "vk.open") { ui.open_dialog },
           button("保存", "vk.save", disabled: !doc) { ui.save_dialog },
           button(ui.capture.running? ? "停止" : "開始", "vk.capture") { ui.capture_toggle },
           button("再開", "vk.restart", disabled: !ui.capture.options) { ui.restart_capture },
-          button(ui.autoscroll? ? "末尾追従 ✓" : "末尾追従", "vk.autoscroll") { ui.toggle_autoscroll })
-        root.child(toolbar)
+          button(ui.autoscroll? ? "末尾追従 ✓" : "末尾追従", "vk.autoscroll") { ui.toggle_autoscroll }]
         if doc&.loading? && doc.source == :file
-          root.child(button("読み込みを中止", "vk.file.cancel") { doc.cancel })
+          toolbar_items << button("読み込みを中止", "vk.file.cancel") { doc.cancel }
         end
+        root.child(Zaniah::UI::Toolbar.new(*toolbar_items))
         root.child(Zaniah::Div.new.flex_row.items_center.gap(6).p([4, 8])
           .child(Zaniah::Div.new.flex_1.focusable(context: {in_display_filter: true}).child(ui.filter_field)).child(button("適用", "vk.filter.apply", disabled: !doc) { ui.apply_filter })
           .child(button("クリア", "vk.filter.clear") { ui.clear_filter })

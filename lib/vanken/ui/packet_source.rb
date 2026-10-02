@@ -7,14 +7,38 @@ module Vanken
         @ui = ui
         reset
       end
-      def reset = (@rows = {}; @pending = Set.new; @last_number = nil)
-      def count = @ui.document&.displayed_count || 0
+      def reset
+        @document = @ui.document
+        @generation = (@generation || 0) + 1
+        @rows, @pending = {}, {}
+        @time_format = @ui.preferences.get("packet_list.time_format")
+        @precision = {"milli" => 3, "micro" => 6, "nano" => 9}.fetch(@ui.preferences.get("packet_list.time_precision"))
+        @limit = @ui.preferences.get("packet_list.row_cache_rows")
+        refresh
+      end
+
+      # Called by posted document notifications, never once per rendered cell.
+      def refresh
+        return reset unless @document.equal?(@ui.document)
+        @count = @document&.displayed_count || 0
+        @packet_count = @document&.count || 0
+        @numbers = {}
+        if @time_format == "delta_displayed"
+          @generation += 1
+          @rows, @pending = {}, {}
+        end
+        self
+      end
+
+      def count = @count
+      def packet_count = @packet_count
       def row_id(index)
-        @ui.document.number_at(index)
+        return [:pending, index] unless index.is_a?(Integer) && index.between?(0, @count - 1)
+        @numbers[index] ||= @document.number_at(index)
       rescue IndexError
         [:pending, index]
       end
-      def index_of(id) = @ui.document.display_numbers.index(id)
+      def index_of(id) = @numbers.key(id) || @document&.display_numbers&.index(id)
       def cell(index, key)
         text = value(index, key)
         return nil if text.nil?
@@ -22,47 +46,44 @@ module Vanken
         Zaniah::Text.new(text.to_s, font: @ui.monospace_font, size: theme.typography.size_sm, color: theme.colors.text)
       end
       def value(index, key)
-        document = @ui.document
-        number = document.number_at(index)
-        if @last_number != number
-          @last_number = number
-          @metadata = document.store.metadata(number)
-          @columns = document.columns[number]
-        end
-        case key
-        when :no then number.to_s
-        when :time
-          format = @ui.preferences.get("packet_list.time_format")
-          return Time.at(@metadata[:timestamp_ns] / 1_000_000_000, @metadata[:timestamp_ns] % 1_000_000_000, :nsec).strftime("%H:%M:%S.%N") if format == "absolute"
-          precision = {"milli" => 3, "micro" => 6, "nano" => 9}.fetch(@ui.preferences.get("packet_list.time_precision"))
-          value = if format == "delta_displayed"
-            index.zero? ? 0.0 : (@metadata[:timestamp_ns] - document.store.metadata(document.number_at(index - 1))[:timestamp_ns]) / 1e9
-          else
-            document.time_value(number, format.to_sym)
+        number = row_id(index)
+        return "" unless number.is_a?(Integer)
+        return number.to_s if key == :no
+        request_row(number, index) unless @rows.key?(number) || @pending.key?(number)
+        @rows[number]&.fetch(key, "")
+      end
+
+      private
+
+      def request_row(number, index)
+        document, generation, format, precision = @document, @generation, @time_format, @precision
+        @pending[number] = generation
+        @ui.app.executor.background do
+          row = document.row(number)
+          values = row.slice(:source, :destination, :protocol, :length, :info).transform_values(&:to_s)
+          values[:time] = format_time(document, row, number, index, format, precision)
+          @ui.app.executor.post do
+            next unless generation == @generation && @ui.document.equal?(document)
+            @pending.delete(number)
+            @rows[number] = values
+            @rows.shift while @rows.size > @limit
+            @ui.window.request_frame
           end
-          Kernel.format("%.*f", precision, value)
-        when :length then @metadata[:original_length].to_s
-        when :info
-          return @rows[number] if @rows.key?(number)
-          return nil if @pending.include?(number)
-          @pending.add(number)
-          @ui.app.executor.background do
-            info = document.row(number)[:info]
-            @ui.app.executor.post do
-              @pending.delete(number)
-              next unless @ui.document.equal?(document)
-              @rows[number] = info
-              @rows.shift while @rows.size > @ui.preferences.get("packet_list.row_cache_rows")
-              @ui.window.request_frame
-            end
-          rescue StandardError
-            @ui.app.executor.post { @pending.delete(number) }
-          end
-          nil
-        else @columns.fetch(key, "")
+        rescue StandardError
+          @ui.app.executor.post { @pending.delete(number) if generation == @generation }
         end
-      rescue IndexError
-        ""
+      end
+
+      def format_time(document, row, number, index, format, precision)
+        timestamp = row.fetch(:timestamp_ns)
+        return Time.at(timestamp / 1_000_000_000, timestamp % 1_000_000_000, :nsec).strftime("%H:%M:%S.%N") if format == "absolute"
+        value = if format == "delta_displayed"
+          previous = index.positive? && document.number_at(index - 1)
+          previous ? (timestamp - document.store.metadata(previous)[:timestamp_ns]) / 1e9 : 0.0
+        else
+          document.time_value(number, format.to_sym)
+        end
+        Kernel.format("%.*f", precision, value)
       end
     end
   end
