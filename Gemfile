@@ -12,5 +12,5 @@ gem "rspec", "~> 3.13"
 gem "rubocop", "~> 1.92", require: false
 gem "rbs-inline", "~> 0.14", require: false
 gem "steep", "~> 2.1", require: false
-gem "minitest", "~> 6.0"
+gem "minitest", "~> 6.1"
 gem "zaniah", path: ENV["VANKEN_ZANIAH_PATH"] if ENV["VANKEN_ZANIAH_PATH"]
